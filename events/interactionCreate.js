@@ -16,9 +16,20 @@ const { STAFF_ROLE_IDS } = require('../config/roles');
 const { handleClaimButton, handleCloseButton } = require('./buttons');
 const handleCloseModal = require('./modals/closeReason');
 
-
 function isStaff(member) {
   return STAFF_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
+}
+
+async function safeReply(interaction, reply) {
+  try {
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(reply);
+    } else {
+      await interaction.reply(reply);
+    }
+  } catch (err) {
+    console.error('❌ Failed to reply safely:', err);
+  }
 }
 
 module.exports = {
@@ -33,10 +44,7 @@ module.exports = {
         await command.execute(interaction, client);
       } catch (error) {
         console.error(error);
-        const reply = { content: '❌ เกิดข้อผิดพลาดในการรันคำสั่ง', ephemeral: true };
-        interaction.replied || interaction.deferred
-          ? await interaction.followUp(reply)
-          : await interaction.reply(reply);
+        await safeReply(interaction, { content: '❌ เกิดข้อผิดพลาดในการรันคำสั่ง', ephemeral: true });
       }
     }
 
@@ -44,24 +52,23 @@ module.exports = {
     if (interaction.isButton() && interaction.customId === 'orderForm') {
       const modal = new ModalBuilder()
         .setCustomId('submitOrder')
-        .setTitle('ฟอร์มสั่งของ');
-
-      const itemInput = new TextInputBuilder()
-        .setCustomId('item')
-        .setLabel('คุณต้องการสั่งอะไร?')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(true);
-
-      const detailInput = new TextInputBuilder()
-        .setCustomId('details')
-        .setLabel('รายละเอียดเพิ่มเติม')
-        .setStyle(TextInputStyle.Paragraph)
-        .setRequired(false);
-
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(itemInput),
-        new ActionRowBuilder().addComponents(detailInput)
-      );
+        .setTitle('ฟอร์มสั่งของ')
+        .addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('item')
+              .setLabel('คุณต้องการสั่งอะไร?')
+              .setStyle(TextInputStyle.Short)
+              .setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder()
+              .setCustomId('details')
+              .setLabel('รายละเอียดเพิ่มเติม')
+              .setStyle(TextInputStyle.Paragraph)
+              .setRequired(false)
+          )
+        );
 
       await interaction.showModal(modal);
     }
@@ -105,7 +112,7 @@ module.exports = {
           .setColor(0x00bfff)
           .setFooter({ text: `Ticket ID: ${ticketId}` });
 
-        const message = `ขอขอบพระคุณท่านที่เลือก Mydream Script Shop โปรดรอพนักงานตอบรับคำสั่งซื้อของคุณ หากท่านได้เลือกผิดหมวดหมู่ กรุณากด Close ข้างล่างเพื่อไม่เป็นการเสียเวลาของพนักงาน หรือถ้าหากข้อมูลที่ท่านเขียนมาผิด โปรดระบุให้พนักงานได้ทราบด้านล่างโดยไม่ต้องรอพนักงานตอบรับ โดยข้อมูลที่ท่านให้เรามามีดังนี้:`;
+        const message = `ขอขอบพระคุณท่านที่เลือก Mydream Script Shop โปรดรอพนักงานตอบรับคำสั่งซื้อของคุณ...`;
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
@@ -113,10 +120,10 @@ module.exports = {
         );
 
         await channel.send({ content: message, embeds: [embed], components: [row] });
-        await interaction.reply({ content: '✅ สร้างช่องสั่งของเรียบร้อยแล้ว!', ephemeral: true });
+        await safeReply(interaction, { content: '✅ สร้างช่องสั่งของเรียบร้อยแล้ว!', ephemeral: true });
       } catch (error) {
         console.error(error);
-        await interaction.reply({ content: '❌ ไม่สามารถสร้างช่องได้', ephemeral: true });
+        await safeReply(interaction, { content: '❌ ไม่สามารถสร้างช่องได้', ephemeral: true });
       }
     }
 
@@ -127,7 +134,7 @@ module.exports = {
 
       if (action === 'claim') {
         if (!isStaff(interaction.member)) {
-          return interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ Claim', ephemeral: true });
+          return await safeReply(interaction, { content: '❌ คุณไม่มีสิทธิ์ Claim', ephemeral: true });
         }
 
         await channel.setName(`claimed-${ticketId}`);
@@ -186,11 +193,11 @@ module.exports = {
           new Date().toISOString()
         ]);
 
-        await interaction.reply({ content: '✅ Ticket ถูกปิดและบันทึกเรียบร้อยแล้ว', ephemeral: true });
+        await safeReply(interaction, { content: '✅ Ticket ถูกปิดและบันทึกเรียบร้อยแล้ว', ephemeral: true });
         await channel.delete();
       } catch (error) {
         console.error(error);
-        await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการปิด Ticket', ephemeral: true });
+        await safeReply(interaction, { content: '❌ เกิดข้อผิดพลาดในการปิด Ticket', ephemeral: true });
       }
     }
   }
