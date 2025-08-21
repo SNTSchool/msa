@@ -11,7 +11,7 @@ module.exports = {
       .setColor(0x00AE86);
 
     const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('ticket_support').setLabel('🛠️ Support').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('orderForm').setLabel('📦 Order | สั่งของ').setStyle(ButtonStyle.Primary),
       new ButtonBuilder().setCustomId('ticket_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId('ticket_other').setLabel('📦 Other').setStyle(ButtonStyle.Secondary)
     );
