@@ -14,6 +14,7 @@ const {
 const { getNextTicketId, appendRow } = require('../utils/googleSheets');
 const { STAFF_ROLE_IDS } = require('../config/roles');
 const { handleClaimButton, handleCloseButton } = require('./buttons');
+const handleCloseModal = require('./modals/closeReason');
 
 
 function isStaff(member) {
