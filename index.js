@@ -13,6 +13,8 @@ for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
   client.commands.set(command.data.name, command);
 }
+const { handleClaimButton, handleCloseButton } = require('./events/buttons');
+
 
 // โหลด events
 const eventFiles = fs.readdirSync('./events');
