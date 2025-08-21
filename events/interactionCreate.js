@@ -4,11 +4,24 @@ module.exports = {
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
+
       try {
         await command.execute(interaction);
       } catch (error) {
         console.error(error);
-        await interaction.reply({ content: 'เกิดข้อผิดพลาด', ephemeral: true });
+
+        // ป้องกันการตอบซ้ำ ถ้า interaction ถูกตอบไปแล้ว
+        if (interaction.replied || interaction.deferred) {
+          await interaction.followUp({
+            content: '❌ เกิดข้อผิดพลาดในการรันคำสั่ง',
+            ephemeral: true
+          });
+        } else {
+          await interaction.reply({
+            content: '❌ เกิดข้อผิดพลาดในการรันคำสั่ง',
+            ephemeral: true
+          });
+        }
       }
     }
 
