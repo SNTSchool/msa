@@ -9,7 +9,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 async function appendRow(spreadsheetId, values) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Transcript1!A1',
+    range: 'Transcript!A1',
     valueInputOption: 'RAW',
     requestBody: { values: [values] }
   });
