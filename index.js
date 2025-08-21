@@ -35,3 +35,4 @@ app.listen(process.env.PORT || 10000, () => {
 });
 
 client.login(process.env.TOKEN);
+console.log(process.env.GOOGLE_PRIVATE_KEY)
