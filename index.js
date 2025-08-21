@@ -28,6 +28,8 @@ for (const file of eventFiles) {
 // Express server สำหรับ Render
 const app = express();
 app.get('/', (req, res) => res.send('Bot is running'));
-app.listen(3000);
+app.listen(process.env.PORT || 10000, () => {
+  console.log('Web service is running');
+});
 
 client.login(process.env.TOKEN);
