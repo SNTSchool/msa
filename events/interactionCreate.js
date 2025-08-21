@@ -13,7 +13,7 @@ const {
 
 const { getNextTicketId, appendRow } = require('../utils/googleSheets');
 const { STAFF_ROLE_IDS } = require('../config/roles');
-const { handleClaimButton, handleCloseButton } = require('./events/buttons');
+const { handleClaimButton, handleCloseButton } = require('./buttons');
 
 
 function isStaff(member) {
