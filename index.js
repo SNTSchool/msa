@@ -14,7 +14,7 @@ for (const file of commandFiles) {
   client.commands.set(command.data.name, command);
 }
 const { handleClaimButton, handleCloseButton } = require('./events/buttons');
-
+const handleCloseModal = require('./events/modals/closeReason');
 
 // โหลด events
 const eventFiles = fs.readdirSync('./events');
