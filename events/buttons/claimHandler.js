@@ -14,8 +14,7 @@ async function handleClaimButton(interaction) {
   if (!isStaff(interaction.member)) {
     return interaction.reply({ content: '❌ คุณไม่มีสิทธิ์ Claim', ephemeral: true });
   }
- console.log('rrr')
-   console.log(action)
+
   if (action === 'claim') {
     await channel.setName(`claimed-${ticketId}`);
     const row = new ActionRowBuilder().addComponents(
@@ -27,8 +26,8 @@ async function handleClaimButton(interaction) {
   await safeUpdate(interaction, {
     components: [row],
   });
-    console.log('eee')
-   console.log(action)
+  
+  
   }
 
   if (action === 'unclaim') {
