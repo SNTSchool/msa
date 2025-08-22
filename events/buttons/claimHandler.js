@@ -1,6 +1,6 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { STAFF_ROLE_IDS } = require('../../config/roles');
-const { setClaimer, getClaimer, clearClaimer } = require('../utils/ticketUtils');
+//const { setClaimer, getClaimer, clearClaimer } = require('../utils/ticketUtils');
 
 
 function isStaff(member) {
@@ -40,7 +40,7 @@ async function handleClaimButton(interaction) {
   await safeUpdate(interaction, {
     components: [row],
   });
-    clearClaimer(channel.id);
+   // clearClaimer(channel.id);
   }
 }
 
