@@ -32,7 +32,11 @@ async function handleClaim(interaction, ticketId) {
     new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
   );
 
-  await safeUpdate(interaction, { components: [row] });
+ const { safeUpdate } = require('../utils/safeInteraction');
+
+  await safeUpdate(interaction, {
+    components: [row],
+  });
 }
 
 async function handleUnclaim(interaction, ticketId) {
@@ -58,7 +62,7 @@ async function handleUnclaim(interaction, ticketId) {
   const { safeUpdate } = require('../utils/safeInteraction');
 
   await safeUpdate(interaction, {
-    components: [updatedRow],
+    components: [row],
   });
    clearClaimer(channel.id);
 }
