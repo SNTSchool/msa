@@ -1,5 +1,13 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits, Collection, ActivityType, SlashCommandBuilder, REST, Routes } = require('discord.js');
+const { 
+  Client, 
+  GatewayIntentBits, 
+  Collection, 
+  ActivityType, 
+  SlashCommandBuilder, 
+  REST, 
+  Routes 
+} = require('discord.js');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
@@ -13,14 +21,18 @@ const VOICE_CHANNEL_ID = '1407734133962309663';
 let customOverride = null;
 
 // โหลดคำสั่งจาก ./commands
-const commandFiles = fs.readdirSync('./commands');
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
-  client.commands.set(command.data.name, command);
+  if ("data" in command && "execute" in command) {
+    client.commands.set(command.data.name, command);
+  } else {
+    console.warn(`⚠️ คำสั่ง ${file} ไม่มี data หรือ execute`);
+  }
 }
 
 // โหลด events จาก ./events
-const eventFiles = fs.readdirSync('./events');
+const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
 for (const file of eventFiles) {
   const event = require(`./events/${file}`);
   if (event.once) {
@@ -45,20 +57,32 @@ client.once('ready', async () => {
     url: 'http://discord.gg/AExMrh4Ddb'
   });
 
-  await registerShopCommands();
+  await registerAllCommands();
   scheduleShopStatus();
 });
 
-// 🛠️ ลงทะเบียนคำสั่ง /openshop และ /closeshop
-async function registerShopCommands() {
-  const commands = [
-    new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override'),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override')
-  ].map(cmd => cmd.toJSON());
+// 🛠️ ลงทะเบียนคำสั่งทั้งหมด (รวม /openshop และ /closeshop)
+async function registerAllCommands() {
+  const commands = [];
+
+  // commands จากโฟลเดอร์ ./commands
+  for (const [name, command] of client.commands) {
+    commands.push(command.data.toJSON());
+  }
+
+  // เพิ่ม override commands
+  commands.push(
+    new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON()
+  );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-  await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands });
-  console.log('✅ Registered shop status commands');
+  await rest.put(
+    Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+    { body: commands }
+  );
+
+  console.log('✅ Registered all commands');
 }
 
 // 🕒 ตรวจสอบสถานะร้านตามเวลา GMT+7
@@ -99,20 +123,33 @@ function scheduleShopStatus() {
   cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
 }
 
-// 🧠 จัดการคำสั่ง override
+// 🧠 จัดการ interaction
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
+  const command = client.commands.get(interaction.commandName);
+
+  // override commands
   if (interaction.commandName === 'openshop') {
     customOverride = 'open';
     await updateVoiceChannelStatus();
-    await interaction.reply({ content: '✅ ร้านถูกเปิดแบบ override แล้ว', ephemeral: true });
+    return interaction.reply({ content: '✅ ร้านถูกเปิดแบบ override แล้ว', ephemeral: true });
   }
 
   if (interaction.commandName === 'closeshop') {
     customOverride = 'closed';
     await updateVoiceChannelStatus();
-    await interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
+    return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
+  }
+
+  // commands จาก ./commands
+  if (!command) return;
+
+  try {
+    await command.execute(interaction, client);
+  } catch (error) {
+    console.error(error);
+    await interaction.reply({ content: '❌ มีข้อผิดพลาดในการรันคำสั่งนี้', ephemeral: true });
   }
 });
 
