@@ -13,8 +13,6 @@ const {
 
 const { getNextTicketId, appendRow } = require('../utils/googleSheets');
 const { STAFF_ROLE_IDS } = require('../config/roles');
-const { handleClaimButton, handleCloseButton } = require('./buttons');
-const handleCloseModal = require('./modals/closeReason');
 
 function isStaff(member) {
   return STAFF_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
@@ -29,6 +27,18 @@ async function safeReply(interaction, reply) {
     }
   } catch (err) {
     console.error('❌ Failed to reply safely:', err);
+  }
+}
+
+async function safeUpdate(interaction, payload) {
+  try {
+    if (interaction.isRepliable() && !interaction.replied) {
+      await interaction.update(payload);
+    } else {
+      await interaction.followUp({ ...payload, ephemeral: true });
+    }
+  } catch (err) {
+    console.error('❌ Failed to update interaction:', err);
   }
 }
 
@@ -80,7 +90,8 @@ module.exports = {
       const categoryId = process.env.ORDER_CH_ID;
 
       try {
-        const ticketId = await getNextTicketId(process.env.SPREADSHEET_ID);
+        const ticketId = await getNextTicketId(process.env.SPREADSHEET_ID); // returns '001'
+        const ticketLabel = `Order-${ticketId}`; // for embed/footer
 
         const channel = await interaction.guild.channels.create({
           name: `order-${ticketId}`,
@@ -110,7 +121,7 @@ module.exports = {
             { name: 'รายละเอียดเพิ่มเติม', value: details, inline: false }
           )
           .setColor(0x00bfff)
-          .setFooter({ text: `Ticket ID: ${ticketId}` });
+          .setFooter({ text: `Ticket ID: ${ticketLabel}` });
 
         const message = `ขอขอบพระคุณท่านที่เลือก Mydream Script Shop โปรดรอพนักงานตอบรับคำสั่งซื้อของคุณ...`;
 
@@ -142,7 +153,7 @@ module.exports = {
           new ButtonBuilder().setCustomId(`unclaim_${ticketId}`).setLabel('🔓 Unclaim').setStyle(ButtonStyle.Secondary),
           new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
         );
-        await interaction.update({ components: [row] });
+        await safeUpdate(interaction, { components: [row] });
       }
 
       if (action === 'unclaim') {
@@ -151,7 +162,7 @@ module.exports = {
           new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
           new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
         );
-        await interaction.update({ components: [row] });
+        await safeUpdate(interaction, { components: [row] });
       }
 
       if (action === 'close') {
@@ -186,7 +197,7 @@ module.exports = {
           .join('\n');
 
         await appendRow(process.env.SPREADSHEET_ID, [
-          ticketId,
+          `Order-${ticketId}`,
           interaction.user.tag,
           reason,
           transcript,
@@ -202,3 +213,4 @@ module.exports = {
     }
   }
 };
+            
