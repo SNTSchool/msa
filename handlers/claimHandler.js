@@ -46,7 +46,7 @@ async function handleUnclaim(interaction, ticketId) {
     });
   }
 
-  clearClaimer(channel.id);
+  
   await channel.setName(`order-${ticketId}`);
   await channel.setTopic(null);
 
@@ -54,7 +54,7 @@ async function handleUnclaim(interaction, ticketId) {
     new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
   );
-
+  clearClaimer(channel.id);
   await safeUpdate(interaction, { components: [row] });
 }
 
