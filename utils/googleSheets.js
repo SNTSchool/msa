@@ -19,6 +19,7 @@ async function getNextTicketId(spreadsheetId) {
 
   const rows = res.data.values || [];
   const lastId = rows.length > 0 ? parseInt(rows[rows.length - 1][0]) : 0;
+  console.log(lastId)
   const nextId = (lastId + 1).toString().padStart(3, '0'); // เช่น '001'
   return nextId;
 }
