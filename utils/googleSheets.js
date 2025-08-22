@@ -14,7 +14,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 async function getNextTicketId(spreadsheetId) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Tickets!A:A', // สมมุติว่า column A มี ticket IDs
+    range: 'Transcript!A:A', // สมมุติว่า column A มี ticket IDs
   });
 
   const rows = res.data.values || [];
@@ -26,7 +26,7 @@ async function getNextTicketId(spreadsheetId) {
 async function appendRow(spreadsheetId, rowData) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
-    range: 'Tickets!A1',
+    range: 'Transcript!A1',
     valueInputOption: 'RAW',
     insertDataOption: 'INSERT_ROWS',
     requestBody: {
