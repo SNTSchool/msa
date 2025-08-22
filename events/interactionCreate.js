@@ -4,14 +4,15 @@ const {
   TextInputBuilder,
   TextInputStyle,
   ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   ChannelType,
   PermissionFlagsBits,
-  EmbedBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  EmbedBuilder
 } = require('discord.js');
 
-const { getNextTicketId, appendRow } = require('../utils/googleSheets');
+const { createTicket } = require('../commands/createTicket');
+const { closeTicket } = require('../commands/closeTicket');
 const { STAFF_ROLE_IDS } = require('../config/roles');
 
 function isStaff(member) {
@@ -83,16 +84,15 @@ module.exports = {
       await interaction.showModal(modal);
     }
 
-    // 📝 Modal: สร้างช่อง order-<ticketId>
+    // 📝 Modal: สร้าง Ticket
     if (interaction.isModalSubmit() && interaction.customId === 'submitOrder') {
       const item = interaction.fields.getTextInputValue('item');
       const details = interaction.fields.getTextInputValue('details') || 'ไม่มีรายละเอียดเพิ่มเติม';
-      const categoryId = process.env.ORDER_CH_ID;
 
       try {
-        const ticketId = await getNextTicketId(process.env.SPREADSHEET_ID); // returns '001'
-        const ticketLabel = `Order-${ticketId}`; // for embed/footer
+        const ticketId = await createTicket(interaction, item, details);
 
+        const categoryId = process.env.ORDER_CH_ID;
         const channel = await interaction.guild.channels.create({
           name: `order-${ticketId}`,
           type: ChannelType.GuildText,
@@ -121,20 +121,18 @@ module.exports = {
             { name: 'รายละเอียดเพิ่มเติม', value: details, inline: false }
           )
           .setColor(0x00bfff)
-          .setFooter({ text: `Ticket ID: ${ticketLabel}` });
-
-        const message = `ขอขอบพระคุณท่านที่เลือก Mydream Script Shop โปรดรอพนักงานตอบรับคำสั่งซื้อของคุณ...`;
+          .setFooter({ text: `Ticket ID: Order-${ticketId}` });
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
           new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
         );
 
-        await channel.send({ content: message, embeds: [embed], components: [row] });
+        await channel.send({ embeds: [embed], components: [row] });
         await safeReply(interaction, { content: '✅ สร้างช่องสั่งของเรียบร้อยแล้ว!', ephemeral: true });
       } catch (error) {
         console.error(error);
-        await safeReply(interaction, { content: '❌ ไม่สามารถสร้างช่องได้', ephemeral: true });
+        await safeReply(interaction, { content: '❌ ไม่สามารถสร้าง Ticket ได้', ephemeral: true });
       }
     }
 
@@ -182,7 +180,7 @@ module.exports = {
       }
     }
 
-    // 📝 Modal: เหตุผลในการปิด → log → ลบช่อง
+    // 📝 Modal: ปิด Ticket
     if (interaction.isModalSubmit() && interaction.customId.startsWith('confirmClose_')) {
       const ticketId = interaction.customId.split('_')[1];
       const reason = interaction.fields.getTextInputValue('reason');
@@ -196,13 +194,7 @@ module.exports = {
           .reverse()
           .join('\n');
 
-        await appendRow(process.env.SPREADSHEET_ID, [
-          `Order-${ticketId}`,
-          interaction.user.tag,
-          reason,
-          transcript,
-          new Date().toISOString()
-        ]);
+        await closeTicket(ticketId, reason, transcript);
 
         await safeReply(interaction, { content: '✅ Ticket ถูกปิดและบันทึกเรียบร้อยแล้ว', ephemeral: true });
         await channel.delete();
@@ -213,4 +205,4 @@ module.exports = {
     }
   }
 };
-            
+                                                                                                
