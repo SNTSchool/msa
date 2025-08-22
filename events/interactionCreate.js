@@ -61,7 +61,7 @@ module.exports = {
       try {
         const ticketId = await createTicket(interaction, item, details);
         const categoryId = process.env.ORDER_CH_ID;
-
+        console.log(ticketId)
         const channel = await interaction.guild.channels.create({
           name: `order-${ticketId}`,
           type: ChannelType.GuildText,
