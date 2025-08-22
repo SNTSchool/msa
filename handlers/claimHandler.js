@@ -43,28 +43,36 @@ async function handleUnclaim(interaction, ticketId) {
   const channel = interaction.channel;
   const currentClaimer = getClaimer(channel.id);
 
-  if (currentClaimer !== interaction.user.id) {
-    return await safeReply(interaction, {
-      content: `❌ คุณไม่ได้ Claim ticket นี้`,
-      ephemeral: true
-    });
+ // if (currentClaimer !== interaction.user.id) {
+ //   return await safeReply(interaction, {
+   //   content: `❌ คุณไม่ได้ Claim ticket นี้`,
+    //  ephemeral: true
+   // });
+ // }
+async function handleUnclaim(channel) {
+  try {
+    await updateTicketUI(channel.id);
+    clearClaimer(channel.id);
+    console.log(`Unclaimed successfully for ${channel.id}`);
+  } catch (err) {
+    console.error(`Unclaim failed:`, err);
   }
-
+}
   
-  await channel.setName(`order-${ticketId}`);
-  await channel.setTopic(null);
+ // await channel.setName(`order-${ticketId}`);
+ // await channel.setTopic(null);
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
-  );
+ // const row = new ActionRowBuilder().addComponents(
+  //  new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
+  //  new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
+ // );
  
-  const { safeUpdate } = require('../utils/safeInteraction');
+ // const { safeUpdate } = require('../utils/safeInteraction');
 
-  await safeUpdate(interaction, {
-    components: [row],
-  });
-   clearClaimer(channel.id);
+ // await safeUpdate(interaction, {
+ //   components: [row],
+ // });
+ //  clearClaimer(channel.id);
 }
 
 module.exports = {
