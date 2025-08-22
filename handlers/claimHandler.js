@@ -63,7 +63,7 @@ async function handleClaim(interaction, ticketId) {
 async function handleUnclaim(interaction, ticketId) {
   const channel = interaction.channel;
   const currentClaimer = getClaimer(channel.id);
-
+  console.log(ticketId)
   if (currentClaimer !== interaction.user.id) {
     return await safeReply(interaction, {
       content: `❌ คุณไม่ได้ Claim ticket นี้`,
@@ -75,10 +75,13 @@ async function handleUnclaim(interaction, ticketId) {
     content: `✅ กำลัง Unclaim ticket นี้...`,
     ephemeral: true
   });
-
+console.log(ticketId)
   try {
+    console.log(ticketId)
      clearClaimer(channel.id);
+    console.log(ticketId)
   await channel.setName(`ticket-${ticketId}`);
+    console.log(ticketId)
   await channel.setTopic(null);
   await updateTicketUI(channel, 'open');
 
