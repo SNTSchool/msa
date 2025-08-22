@@ -14,7 +14,7 @@ const sheets = google.sheets({ version: 'v4', auth });
 async function getNextTicketId(spreadsheetId) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Tickets!A:A', // หรือ Transcript!A:A แล้วแต่ชื่อ sheet
+    range: 'Transcript!A:A', // หรือ Transcript!A:A แล้วแต่ชื่อ sheet
   });
 
   const rows = res.data.values || [];
