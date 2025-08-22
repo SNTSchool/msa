@@ -15,18 +15,21 @@ function clearClaimer(channelId) {
 }
 
 
-async function updateTicketUI(channel, status = 'open') {
+async function updateTicketUI(channelId, status = 'open', client) {
+  const channel = client.channels.cache.get(channelId);
+  if (!channel) throw new Error(`Channel ${channelId} not found`);
+
   const row = new ActionRowBuilder();
 
   if (status === 'open') {
     row.addComponents(
-      new ButtonBuilder().setCustomId(`claim_${channel.id}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`close_${channel.id}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
+      new ButtonBuilder().setCustomId(`claim_${channelId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`close_${channelId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
     );
   } else if (status === 'claimed') {
     row.addComponents(
-      new ButtonBuilder().setCustomId(`unclaim_${channel.id}`).setLabel('🔓 Unclaim').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId(`close_${channel.id}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
+      new ButtonBuilder().setCustomId(`unclaim_${channelId}`).setLabel('🔓 Unclaim').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(`close_${channelId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
     );
   }
 
