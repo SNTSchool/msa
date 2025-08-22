@@ -11,8 +11,8 @@ const {
   EmbedBuilder
 } = require('discord.js');
 
-const { createTicket } = require('../commands/createTicket');
-const { closeTicket } = require('../commands/closeTicket');
+const { createTicket } = require('../handlers/createTicket');
+const { closeTicket } = require('../handlers/closeTicket');
 const { STAFF_ROLE_IDS } = require('../config/roles');
 
 function isStaff(member) {
