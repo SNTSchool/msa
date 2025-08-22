@@ -75,10 +75,11 @@ async function handleUnclaim(interaction, ticketId) {
     content: `✅ กำลัง Unclaim ticket นี้...`,
     ephemeral: true
   });
+  
 console.log(ticketId);
   try {
     console.log(ticketId);
-    
+    console.log(typeof ticketId, ticketId);
   await channel.setName(`ticket-${ticketId}`);
     console.log(ticketId);
   await channel.setTopic(null);
