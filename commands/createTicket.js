@@ -1,4 +1,4 @@
-const { getNextTicketId, appendRow } = require('../utils/googlesheets');
+const { getNextTicketId, appendRow } = require('../utils/googleSheets');
 
 async function createTicket(interaction, item, details) {
   const ticketId = await getNextTicketId(process.env.SPREADSHEET_ID);
