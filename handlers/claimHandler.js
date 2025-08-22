@@ -11,7 +11,7 @@ const {
   clearClaimer,
   updateTicketUI
 } = require('../utils/ticketUtils');
-const { safeReply, safeUpdate } = require('../utils/safeInteraction');
+const { safeReply } = require('../utils/safeInteraction');
 
 async function handleClaim(interaction, ticketId) {
   const channel = interaction.channel;
@@ -35,7 +35,7 @@ async function handleClaim(interaction, ticketId) {
   await channel.setName(`claimed-${ticketId}`);
   await channel.setTopic(`Claimed by ${interaction.user.tag}`);
 
-  await updateTicketUI(channel.id, 'claimed');
+  await updateTicketUI(channel, 'claimed');
   await safeReply(interaction, {
     content: `✅ คุณได้ Claim ticket นี้แล้ว`,
     ephemeral: true
@@ -57,7 +57,7 @@ async function handleUnclaim(interaction, ticketId) {
   await channel.setName(`ticket-${ticketId}`);
   await channel.setTopic(null);
 
-  await updateTicketUI(channel.id, 'open');
+  await updateTicketUI(channel, 'open');
   await safeReply(interaction, {
     content: `🔓 คุณได้ Unclaim ticket นี้แล้ว`,
     ephemeral: true
