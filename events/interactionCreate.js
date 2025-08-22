@@ -61,7 +61,7 @@ module.exports = {
       try {
         const ticketId = await createTicket(interaction, item, details);
         const categoryId = process.env.ORDER_CH_ID;
-        console.log(ticketId)
+        
         const channel = await interaction.guild.channels.create({
           name: `order-${ticketId}`,
           type: ChannelType.GuildText,
@@ -107,7 +107,7 @@ module.exports = {
 
     if (interaction.isButton()) {
       const [action, ticketId] = interaction.customId.split('_');
-
+      console.log(ticketId)
       if (action === 'claim') return await handleClaim(interaction, ticketId);
       if (action === 'unclaim') return await handleUnclaim(interaction, ticketId);
 
