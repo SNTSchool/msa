@@ -13,6 +13,8 @@ const {
 } = require('../utils/ticketUtils');
 const { safeReply } = require('../utils/safeInteraction');
 
+
+
 async function handleClaim(interaction, ticketId) {
   const channel = interaction.channel;
 
@@ -31,16 +33,33 @@ async function handleClaim(interaction, ticketId) {
     });
   }
 
-  setClaimer(channel.id, interaction.user.id);
-  await channel.setName(`claimed-${ticketId}`);
-  await channel.setTopic(`Claimed by ${interaction.user.tag}`);
-
-  await updateTicketUI(channel, 'claimed');
+  // ✅ ตอบ interaction ก่อน
   await safeReply(interaction, {
-    content: `✅ คุณได้ Claim ticket นี้แล้ว`,
+    content: `✅ กำลัง Claim ticket นี้...`,
     ephemeral: true
   });
+
+  // แล้วค่อยทำงานอื่น
+  try {
+    setClaimer(channel.id, interaction.user.id);
+    await channel.setName(`claimed-${ticketId}`);
+    await channel.setTopic(`Claimed by ${interaction.user.tag}`);
+    await updateTicketUI(channel, 'claimed');
+
+    // ✅ ส่ง followUp ถ้าต้องแจ้งผลเพิ่มเติม
+    await interaction.followUp({
+      content: `🎯 คุณได้ Claim ticket นี้เรียบร้อยแล้ว`,
+      ephemeral: true
+    });
+  } catch (err) {
+    console.error('Claim error:', err);
+    await interaction.followUp({
+      content: `⚠️ เกิดข้อผิดพลาดขณะ Claim ticket`,
+      ephemeral: true
+    });
+  }
 }
+
 
 async function handleUnclaim(interaction, ticketId) {
   const channel = interaction.channel;
