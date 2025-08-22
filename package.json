@@ -12,6 +12,8 @@
     "googleapis": "^118.0.0",
     "google-spreadsheet": "^3.3.0",
     "canvas": "^2.11.2",
-    "pdfkit": "^0.13.0"
+    "pdfkit": "^0.13.0",
+    "moment-timezone": "^0.5.43",
+    "node-cron": "^3.0.3"
   }
 }
