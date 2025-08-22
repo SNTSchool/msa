@@ -23,6 +23,7 @@ async function handleClaimButton(interaction) {
   }
 
   if (action === 'unclaim') {
+    console.log('Bug')
     await channel.setName(`order-${ticketId}`);
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
