@@ -11,27 +11,30 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 
+/**
+ * ดึง Ticket ID ถัดไปจาก Sheet
+ */
 async function getNextTicketId(spreadsheetId) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: 'Transcript!A:A', // หรือชื่อ sheet ที่คุณใช้จริง
+    range: 'Transcript!A:A',
   });
 
   const rows = res.data.values || [];
-
-  // กรองเฉพาะแถวที่มีรูปแบบ 'Order-xxx'
-  const dataRows = rows
+  const ticketIds = rows
     .map(row => row[0])
     .filter(cell => /^Order-\d+$/.test(cell));
 
-  // ดึงเลขจากแถวสุดท้าย
-  const lastRaw = dataRows[dataRows.length - 1];
-  const lastId = lastRaw ? parseInt(lastRaw.match(/\d+$/)[0], 10) : 0;
+  const lastId = ticketIds.length
+    ? parseInt(ticketIds[ticketIds.length - 1].match(/\d+$/)[0], 10)
+    : 0;
 
-  const nextId = lastId + 1;
-  return String(nextId).padStart(3, '0'); // return '001', '002', ...
+  return String(lastId + 1).padStart(3, '0'); // '001', '002', ...
 }
 
+/**
+ * เพิ่มแถวใหม่ตอนสร้าง Ticket
+ */
 async function appendRow(spreadsheetId, rowData) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
@@ -44,4 +47,51 @@ async function appendRow(spreadsheetId, rowData) {
   });
 }
 
-module.exports = { getNextTicketId, appendRow };
+/**
+ * อัปเดตข้อมูล Ticket ตอนปิด เช่น transcript, เหตุผล, timestamp
+ */
+async function updateTicketRow(spreadsheetId, ticketId, updates) {
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: 'Transcript!A1:I',
+  });
+
+  const rows = res.data.values || [];
+  const rowIndex = rows.findIndex(row => row[0] === `Order-${ticketId}`);
+
+  if (rowIndex === -1) {
+    throw new Error(`Ticket Order-${ticketId} not found`);
+  }
+
+  const row = rows[rowIndex];
+
+  // อัปเดตเฉพาะฟิลด์ที่ส่งมา
+  const fieldMap = {
+    status: 4,
+    reason: 6,
+    transcript: 7,
+    closedAt: 8,
+  };
+
+  for (const [key, value] of Object.entries(updates)) {
+    const colIndex = fieldMap[key];
+    if (colIndex !== undefined) {
+      row[colIndex] = value;
+    }
+  }
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `Transcript!A${rowIndex + 1}:I${rowIndex + 1}`,
+    valueInputOption: 'RAW',
+    requestBody: {
+      values: [row],
+    },
+  });
+}
+
+module.exports = {
+  getNextTicketId,
+  appendRow,
+  updateTicketRow,
+};
