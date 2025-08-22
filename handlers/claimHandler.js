@@ -80,9 +80,9 @@ console.log(ticketId);
   try {
     console.log(ticketId);
     console.log(typeof ticketId, ticketId);
-  await channel.setName(`ticket-${ticketId}`);
+  await channel.setName(`order-${ticketId}`);
     console.log(ticketId);
-  await channel.setTopic(null);
+  await channel.setTopic(`Unclaimed`);
   await updateTicketUI(channel, 'open');
      clearClaimer(channel.id);
     console.log(ticketId);
