@@ -1,4 +1,4 @@
-async { google } = require('googleapis');
+const { google } = require('googleapis');
 
 const auth = new google.auth.GoogleAuth({
   credentials: {
