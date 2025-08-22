@@ -54,7 +54,7 @@ client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   client.user.setActivity('ช่วยงานสุดหล่อ', {
     type: ActivityType.Streaming,
-    url: 'http://discord.gg/AExMrh4Ddb'
+    url: 'https://www.twitch.tv/idleaccountdun'
   });
 
   await registerAllCommands();
