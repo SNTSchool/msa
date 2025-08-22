@@ -16,6 +16,7 @@ const { closeTicket } = require('../handlers/closeTicket');
 const { handleClaim, handleUnclaim } = require('../handlers/claimHandler');
 const { STAFF_ROLE_IDS } = require('../config/roles');
 const { safeReply } = require('../utils/safeInteraction');
+const { setTicketId } = require('../utils/ticketUtils');
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -82,6 +83,9 @@ module.exports = {
           ]
         });
 
+          setTicketId(channel.id, ticketId);
+
+        
         const embed = new EmbedBuilder()
           .setTitle('📦 รายการสั่งซื้อ')
           .addFields(
