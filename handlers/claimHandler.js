@@ -71,15 +71,29 @@ async function handleUnclaim(interaction, ticketId) {
     });
   }
 
-  clearClaimer(channel.id);
-  await channel.setName(`ticket-${ticketId}`);
-  await channel.setTopic(null);
-
-  await updateTicketUI(channel, 'open');
   await safeReply(interaction, {
-    content: `🔓 คุณได้ Unclaim ticket นี้แล้ว`,
+    content: `✅ กำลัง Unclaim ticket นี้...`,
     ephemeral: true
   });
+
+  try {
+     clearClaimer(channel.id);
+  await channel.setName(`ticket-${ticketId}`);
+  await channel.setTopic(null);
+  await updateTicketUI(channel, 'open');
+
+    
+    await interaction.followUp({
+      content: `🔓 คุณได้ Unclaim ticket นี้เรียบร้อยแล้ว`,
+      ephemeral: true
+    });
+  } catch (err) {
+    console.error('Claim error:', err);
+    await interaction.followUp({
+      content: `⚠️ เกิดข้อผิดพลาดขณะ Unclaim ticket`,
+      ephemeral: true
+    });
+  }
 }
 
 module.exports = {
