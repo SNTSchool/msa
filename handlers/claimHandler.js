@@ -16,6 +16,7 @@ const { safeReply } = require('../utils/safeInteraction');
 
 
 async function handleClaim(interaction, ticketId) {
+  console.log(ticketId)
   const channel = interaction.channel;
 
   if (!isStaff(interaction.member)) {
