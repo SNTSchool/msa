@@ -16,9 +16,8 @@ const { safeReply } = require('../utils/safeInteraction');
 
 
 async function handleClaim(interaction, ticketId) {
-  console.log(ticketId)
   const channel = interaction.channel;
-
+console.log(ticketId)
   if (!isStaff(interaction.member)) {
     return await safeReply(interaction, {
       content: '❌ คุณไม่มีสิทธิ์ Claim',
@@ -63,6 +62,7 @@ async function handleClaim(interaction, ticketId) {
 
 
 async function handleUnclaim(interaction, ticketId) {
+  console.log(ticketId)
   const channel = interaction.channel;
   const currentClaimer = getClaimer(channel.id);
 
