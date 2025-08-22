@@ -1,5 +1,7 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { STAFF_ROLE_IDS } = require('../../config/roles');
+const { setClaimer, getClaimer, clearClaimer } = require('../utils/ticketUtils');
+
 
 function isStaff(member) {
   return STAFF_ROLE_IDS.some(roleId => member.roles.cache.has(roleId));
@@ -19,7 +21,11 @@ async function handleClaimButton(interaction) {
       new ButtonBuilder().setCustomId(`unclaim_${ticketId}`).setLabel('🔓 Unclaim').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
     );
-    await interaction.update({ components: [row] });
+   const { safeUpdate } = require('../utils/safeInteraction');
+
+  await safeUpdate(interaction, {
+    components: [row],
+  });
   }
 
   if (action === 'unclaim') {
@@ -29,7 +35,12 @@ async function handleClaimButton(interaction) {
       new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
     );
-    await interaction.update({ components: [row] });
+    const { safeUpdate } = require('../utils/safeInteraction');
+
+  await safeUpdate(interaction, {
+    components: [row],
+  });
+    clearClaimer(channel.id);
   }
 }
 
