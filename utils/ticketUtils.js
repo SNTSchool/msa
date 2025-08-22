@@ -2,46 +2,34 @@ const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getNextTicketId, appendRow } = require('../utils/googleSheets');
 
 const claimerMap = new Map();
-const ticketIdMap = new Map(); // channelId ↔ ticketId
+const ticketIdMap = new Map(); 
 
-/**
- * บันทึกผู้ที่ Claim ticket
- */
+
 function setClaimer(channelId, userId) {
   claimerMap.set(channelId, userId);
 }
 
-/**
- * ดึงข้อมูลผู้ที่ Claim ticket
- */
+
 function getClaimer(channelId) {
   return claimerMap.get(channelId);
 }
 
-/**
- * ล้างข้อมูล claimer ของ ticket
- */
+
 function clearClaimer(channelId) {
   claimerMap.delete(channelId);
 }
 
-/**
- * บันทึก ticketId ที่สัมพันธ์กับ channelId
- */
+
 function setTicketId(channelId, ticketId) {
   ticketIdMap.set(channelId, ticketId);
 }
 
-/**
- * ดึง ticketId จาก channelId
- */
+
 function getTicketId(channelId) {
   return ticketIdMap.get(channelId);
 }
 
-/**
- * อัปเดต UI ของ ticket ตามสถานะ
- */
+
 async function updateTicketUI(channel, status = 'open') {
   const ticketId = getTicketId(channel.id) || channel.id;
 
@@ -91,6 +79,5 @@ module.exports = {
   clearClaimer,
   setTicketId,
   getTicketId,
-  createTicket,
   updateTicketUI
 };
