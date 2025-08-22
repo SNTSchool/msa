@@ -94,6 +94,11 @@ module.exports = {
 
         const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(`claim_${ticketId}`).setLabel('🎯 Claim').setStyle(ButtonStyle.Success),
+            if (interaction.isButton()) {
+           const [action, ticketId] = interaction.customId.split('_');
+          console.log(ticketId)
+          }
+         
           new ButtonBuilder().setCustomId(`close_${ticketId}`).setLabel('❌ Close').setStyle(ButtonStyle.Danger)
         );
 
@@ -107,7 +112,7 @@ module.exports = {
 
     if (interaction.isButton()) {
       const [action, ticketId] = interaction.customId.split('_');
-      console.log(ticketId)
+      
       if (action === 'claim') return await handleClaim(interaction, ticketId);
       if (action === 'unclaim') return await handleUnclaim(interaction, ticketId);
 
