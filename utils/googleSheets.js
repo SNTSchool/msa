@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+async { google } = require('googleapis');
 
 const auth = new google.auth.GoogleAuth({
   credentials: {
@@ -30,27 +30,12 @@ async function appendRow(spreadsheetId, values) {
  * @param {string} spreadsheetId - รหัสชีต
  * @returns {string} - Ticket ID ใหม่
  */
-async function getNextTicketId(spreadsheetId) {
-  const range = 'Transcript!A:A';
-
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range
-  });
-
-  const rows = res.data.values || [];
-
-  // ลบ header ถ้ามี
-  const dataRows = rows.filter(row => row[0] !== 'Ticket ID');
-
-  // ดึงเลขล่าสุด
-  const lastId = dataRows.length > 0
-    ? parseInt(dataRows[dataRows.length - 1][0])
-    : 0;
-
-  const nextId = lastId + 1;
-
-  return `Order-${String(nextId).padStart(3, '0')}`;
+async function getNextTicketId(sheet) {
+  const rows = await sheet.getRows();
+  const lastRow = rows[rows.length - 1];
+  const lastId = lastRow?.TicketID?.match(/\d+$/)?.[0] || '000';
+  const nextId = parseInt(lastId, 10) + 1;
+  return String(nextId).padStart(3, '0'); // Return only numeric part
 }
 
 module.exports = {
