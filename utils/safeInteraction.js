@@ -12,13 +12,18 @@ async function safeReply(interaction, reply) {
 
 async function safeUpdate(interaction, payload) {
   try {
-    if (interaction.isRepliable() && !interaction.replied) {
-      await interaction.update(payload);
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp(payload);
     } else {
-      await interaction.followUp({ ...payload, ephemeral: true });
+      await interaction.update(payload);
     }
   } catch (err) {
-    console.error('❌ Failed to update interaction:', err);
+    console.error('Interaction update failed:', err);
+    try {
+      await interaction.followUp({ content: 'เกิดข้อผิดพลาดในการ unclaim', ephemeral: true });
+    } catch (followErr) {
+      console.error('FollowUp also failed:', followErr);
+    }
   }
 }
 
