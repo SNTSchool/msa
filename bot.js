@@ -19,10 +19,7 @@ client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   
  plugins: [
-    new SpotifyPlugin({
-      parallel: true,
-      emitEventsAfterFetching: true
-    })
+    new SpotifyPlugin()
   ],
 });
 
