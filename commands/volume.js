@@ -15,11 +15,9 @@ module.exports = {
     if (!queue) return interaction.reply({ content: '❌ ไม่มีเพลงกำลังเล่น', ephemeral: true });
 
     const volume = interaction.options.getInteger('percent');
-    if (volume < 0 || volume > 100) {
-      return interaction.reply({ content: '❌ ใส่ค่าได้แค่ 0 - 100', ephemeral: true });
-    }
+    if (volume < 0 || volume > 100) return interaction.reply({ content: '❌ ใส่ค่าได้แค่ 0-100', ephemeral: true });
 
     queue.setVolume(volume);
-    return interaction.reply({ content: `🔊 ปรับเสียงเป็น ${volume}% แล้ว` });
+    interaction.reply({ content: '🔊 ปรับเสียงเป็น ' + volume + '% แล้ว' });
   },
 };
