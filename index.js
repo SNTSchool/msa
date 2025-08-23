@@ -21,6 +21,17 @@ const client = new Client({
   ] 
 });
 
+
+client.distube = new DisTube(client, {
+  leaveOnStop: false,
+  emitNewSongOnly: true,
+  plugins: [new YtDlpPlugin()]
+});
+
+
+
+
+
 client.commands = new Collection();
 
 const VOICE_CHANNEL_ID = '1407734133962309663';
