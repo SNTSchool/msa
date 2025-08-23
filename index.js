@@ -13,6 +13,10 @@ const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
+const { DisTube } = require('distube');
+const { YtDlpPlugin } = require('@distube/yt-dlp');
+
+
 
 const client = new Client({ 
   intents: [
@@ -25,7 +29,7 @@ const client = new Client({
 client.distube = new DisTube(client, {
   leaveOnStop: false,
   emitNewSongOnly: true,
-  plugins: [new YtDlpPlugin()]
+  s: [new YtDlpPlugin()]
 });
 
 
