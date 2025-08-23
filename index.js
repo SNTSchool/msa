@@ -27,9 +27,10 @@ const client = new Client({
 
 
 client.distube = new DisTube(client, {
-  leaveOnStop: false,
   emitNewSongOnly: true,
-  s: [new YtDlpPlugin()]
+  leaveOnEmpty: true, // ถ้าห้องว่างจะออก
+  leaveOnFinish: true, // จบเพลงแล้วออก
+  plugins: [new YtDlpPlugin()]
 });
 
 
