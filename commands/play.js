@@ -3,38 +3,49 @@ const { SlashCommandBuilder } = require('discord.js');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('play')
-    .setDescription('เล่นเพลงจาก URL ของไฟล์เสียง')
+    .setDescription('เล่นเพลงจาก URL ของไฟล์หรือ Spotify public track')
     .addStringOption(option =>
-      option.setName('url')
-        .setDescription('ลิงก์ตรงของไฟล์เสียง (.mp3, .ogg, .wav)')
+      option.setName('query')
+        .setDescription('ลิงก์ไฟล์เพลงหรือ Spotify track')
         .setRequired(true)
     ),
 
- async execute(interaction, client) {
-  try {
-    // defer ก่อนเล่นเพลง (ถ้าใช้เวลา)
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferReply();
+  async execute(interaction, client) {
+    const query = interaction.options.getString('query');
+    const member = interaction.member;
+    const voiceChannel = member.voice.channel;
+
+    if (!voiceChannel) {
+      return interaction.reply({ content: '❌ คุณต้องเข้าห้องเสียงก่อน', ephemeral: true });
     }
 
-    // เล่นเพลง
-    await client.distube.play(interaction.member.voice.channel, 'เพลงตัวอย่าง', {
-      member: interaction.member,
-      textChannel: interaction.channel
-    });
+    try {
+      // ป้องกัน interaction หมดอายุ
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply();
+      }
 
-    // editReply แทน reply
-    await interaction.editReply('🎶 เล่นเพลงเรียบร้อยแล้ว!');
+      if (!client.distube) {
+        return interaction.editReply('❌ Bot ยังไม่พร้อมเล่นเพลง');
+      }
 
-  } catch (err) {
-    console.error(err);
+      // เล่นเพลงจาก URL ตรงหรือ Spotify public
+      await client.distube.play(voiceChannel, query, {
+        member: member,
+        textChannel: interaction.channel
+      });
 
-    // เช็คอีกครั้งก่อน reply/followUp
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: '❌ มีข้อผิดพลาดในการเล่นเพลง', ephemeral: true });
-    } else {
-      await interaction.reply({ content: '❌ มีข้อผิดพลาดในการเล่นเพลง', ephemeral: true });
+      await interaction.editReply(`🎶 กำลังเล่น: \`${query}\``);
+
+    } catch (err) {
+      console.error(err);
+
+      // reply/followUp แบบปลอดภัย
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: '❌ มีข้อผิดพลาดในการเล่นเพลง', ephemeral: true });
+      } else {
+        await interaction.reply({ content: '❌ มีข้อผิดพลาดในการเล่นเพลง', ephemeral: true });
+      }
     }
-  }
-}
+  },
 };
