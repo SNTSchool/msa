@@ -95,12 +95,12 @@ async function handleUnclaim(interaction, ticketId) {
     console.log('c')
 
     // เปลี่ยนชื่อ channel
-    if (channel.name !== newName) {
-      await channel.setName(newName);
-      console.log(`✅ เปลี่ยนชื่อ channel เป็น ${newName}`);
-    } else {
-      console.log(`ℹ️ ชื่อ channel เป็น ${newName} อยู่แล้ว ไม่ต้องเปลี่ยน`);
-    }
+   // if (channel.name !== newName) {
+    //  await channel.setName(newName);
+     // console.log(`✅ เปลี่ยนชื่อ channel เป็น ${newName}`);
+    //} else {
+    //  console.log(`ℹ️ ชื่อ channel เป็น ${newName} อยู่แล้ว ไม่ต้องเปลี่ยน`);
+   // }
     console.log('d')
 
     // เปลี่ยน topic
