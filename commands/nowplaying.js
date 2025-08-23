@@ -13,8 +13,8 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x57F287)
       .setTitle('🎵 ตอนนี้กำลังเล่น')
-      .setDescription(`**${song.name}** \`[${song.formattedDuration}]\``);
+      .setDescription('**' + song.name + '** [' + song.formattedDuration + ']');
 
-    return interaction.reply({ embeds: [embed] });
+    interaction.reply({ embeds: [embed] });
   },
 };
