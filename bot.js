@@ -18,14 +18,17 @@ client.commands = new Collection();
 // Distube setup
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
-  leaveOnStop: true,
-  leaveOnFinish: true,
+   leaveOnEmpty: true, // ถ้าห้องว่างจะออก
+  leaveOnFinish: true, // จบเพลงแล้วออก
   plugins: [
     new YtDlpPlugin(),
     new SpotifyPlugin(),
     new SoundCloudPlugin()
   ]
 });
+
+
+
 
 // โหลด commands
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
