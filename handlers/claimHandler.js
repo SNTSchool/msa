@@ -32,20 +32,17 @@ async function handleClaim(interaction, ticketId) {
     });
   }
 
-  // ✅ ตอบ interaction ก่อน
   await safeReply(interaction, {
     content: `✅ กำลัง Claim ticket นี้...`,
     ephemeral: true
   });
 
-  // แล้วค่อยทำงานอื่น
   try {
     setClaimer(channel.id, interaction.user.id);
     await channel.setName(`claimed-${ticketId}`);
     await channel.setTopic(`Claimed by ${interaction.user.tag}`);
     await updateTicketUI(channel, 'claimed');
 
-    // ✅ ส่ง followUp ถ้าต้องแจ้งผลเพิ่มเติม
     await interaction.followUp({
       content: `🎯 คุณได้ Claim ticket นี้เรียบร้อยแล้ว`,
       ephemeral: true
@@ -77,13 +74,11 @@ async function handleUnclaim(interaction, ticketId) {
   });
 
   try {
-    console.log('a')
-    // ตรวจสอบว่า ticketId เป็น string ที่ถูกต้อง
+    
     const cleanId = typeof ticketId === 'string' ? ticketId.trim() : String(ticketId);
-    const newName = `ticket-${cleanId}`;
-    console.log('b')
+    const newName = `order-${cleanId}`;
+   
 
-    // ตรวจสอบ permission ก่อนเปลี่ยนชื่อ
     const hasPermission = channel.permissionsFor(channel.guild.members.me)?.has('ManageChannels');
     if (!hasPermission) {
       console.warn(`⚠️ Bot ไม่มีสิทธิ์เปลี่ยนชื่อ channel ${channel.name}`);
@@ -94,7 +89,7 @@ async function handleUnclaim(interaction, ticketId) {
     }
     console.log('c')
 
-    // เปลี่ยนชื่อ channel
+    await channel.setName(newName);
    // if (channel.name !== newName) {
     //  await channel.setName(newName);
      // console.log(`✅ เปลี่ยนชื่อ channel เป็น ${newName}`);
@@ -102,12 +97,7 @@ async function handleUnclaim(interaction, ticketId) {
     //  console.log(`ℹ️ ชื่อ channel เป็น ${newName} อยู่แล้ว ไม่ต้องเปลี่ยน`);
    // }
     console.log('d')
-
-    // เปลี่ยน topic
     await channel.setTopic(`Unclaimed`);
-    console.log('e')
-
-    // อัปเดต UI และล้าง claimer
     await updateTicketUI(channel, 'open');
     clearClaimer(channel.id);
 
