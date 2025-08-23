@@ -15,6 +15,8 @@ const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { DisTube } = require('distube');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
+const { SpotifyPlugin } = require('@distube/spotify');
+const { SoundCloudPlugin } = require('@distube/soundcloud');
 
 
 
