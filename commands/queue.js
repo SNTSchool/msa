@@ -9,16 +9,15 @@ module.exports = {
     const queue = client.distube.getQueue(interaction.guildId);
     if (!queue) return interaction.reply({ content: '❌ ไม่มีคิวเพลง', ephemeral: true });
 
-    const q = queue.songs
-      .map((song, i) => `${i === 0 ? '🎶 กำลังเล่น:' : `${i}.`} **${song.name}** \`[${song.formattedDuration}]\``)
-      .slice(0, 10)
-      .join('\n');
+    const q = queue.songs.map(function(song, i) {
+      return (i === 0 ? '🎶 กำลังเล่น:' : (i + '.')) + ' **' + song.name + '** [' + song.formattedDuration + ']';
+    }).slice(0, 10).join('\n');
 
     const embed = new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('📜 คิวเพลง')
       .setDescription(q);
 
-    return interaction.reply({ embeds: [embed] });
+    interaction.reply({ embeds: [embed] });
   },
 };
