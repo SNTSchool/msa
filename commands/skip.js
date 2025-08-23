@@ -10,11 +10,11 @@ module.exports = {
     if (!queue) return interaction.reply({ content: '❌ ไม่มีเพลงกำลังเล่น', ephemeral: true });
 
     try {
-      await queue.skip();
-      return interaction.reply({ content: '⏭️ ข้ามเพลงแล้ว' });
+      queue.skip();
+      interaction.reply({ content: '⏭️ ข้ามเพลงแล้ว' });
     } catch (error) {
       console.error(error);
-      return interaction.reply({ content: '❌ ไม่มีเพลงถัดไปในคิว', ephemeral: true });
+      interaction.reply({ content: '❌ ไม่มีเพลงถัดไป', ephemeral: true });
     }
   },
 };
