@@ -4,7 +4,6 @@ const fs = require('fs');
 const { DisTube } = require('distube');
 const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { SpotifyPlugin } = require('@distube/spotify');
-const { SoundCloudPlugin } = require('@distube/soundcloud');
 
 const client = new Client({
   intents: [
@@ -25,7 +24,6 @@ client.distube = new DisTube(client, {
       cookies: "./cookies.txt", 
     }),
     new SpotifyPlugin(),
-    new SoundCloudPlugin()
   ]
 });
 
