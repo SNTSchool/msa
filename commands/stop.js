@@ -10,6 +10,6 @@ module.exports = {
     if (!queue) return interaction.reply({ content: '❌ ไม่มีเพลงกำลังเล่น', ephemeral: true });
 
     queue.stop();
-    return interaction.reply({ content: '🛑 หยุดเล่นและล้างคิวแล้ว' });
+    interaction.reply({ content: '🛑 หยุดเล่นและล้างคิวแล้ว' });
   },
 };
