@@ -15,11 +15,11 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// 🎵 Distube setup
+// Distube setup
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
-  leaveOnFinish: true,
   leaveOnStop: true,
+  leaveOnFinish: true,
   plugins: [
     new YtDlpPlugin(),
     new SpotifyPlugin(),
@@ -27,7 +27,7 @@ client.distube = new DisTube(client, {
   ]
 });
 
-// 📂 โหลด commands จาก /commands
+// โหลด commands
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
@@ -38,13 +38,13 @@ for (const file of commandFiles) {
   }
 }
 
-// ✅ เมื่อ bot พร้อม
-client.once('ready', () => {
+// Ready
+client.once('ready', function() {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-// 🎤 Interaction handler
-client.on('interactionCreate', async interaction => {
+// Interaction handler
+client.on('interactionCreate', async function(interaction) {
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
@@ -55,25 +55,24 @@ client.on('interactionCreate', async interaction => {
   } catch (error) {
     console.error(error);
     if (interaction.replied || interaction.deferred) {
-      await interaction.followUp({ content: '❌ เกิดข้อผิดพลาด!', ephemeral: true });
+      interaction.followUp({ content: '❌ เกิดข้อผิดพลาด!', ephemeral: true });
     } else {
-      await interaction.reply({ content: '❌ เกิดข้อผิดพลาด!', ephemeral: true });
+      interaction.reply({ content: '❌ เกิดข้อผิดพลาด!', ephemeral: true });
     }
   }
 });
 
-// 🎶 Distube events
-client.distube
-  .on('playSong', (queue, song) =>
-    queue.textChannel?.send(`▶️ กำลังเล่น: **${song.name}** (${song.formattedDuration})`)
-  )
-  .on('addSong', (queue, song) =>
-    queue.textChannel?.send(`➕ เพิ่มเพลง: **${song.name}** (${song.formattedDuration})`)
-  )
-  .on('error', (channel, error) => {
-    console.error('Distube Error:', error);
-    channel?.send('❌ มีข้อผิดพลาดในการเล่นเพลง!');
-  });
+// Distube events
+client.distube.on('playSong', function(queue, song) {
+  if (queue.textChannel) queue.textChannel.send('▶️ กำลังเล่น: **' + song.name + '** (' + song.formattedDuration + ')');
+});
+client.distube.on('addSong', function(queue, song) {
+  if (queue.textChannel) queue.textChannel.send('➕ เพิ่มเพลง: **' + song.name + '** (' + song.formattedDuration + ')');
+});
+client.distube.on('error', function(channel, error) {
+  console.error('Distube Error:', error);
+  if (channel) channel.send('❌ มีข้อผิดพลาดในการเล่นเพลง!');
+});
 
-// 🚪 Login bot
+// Login
 client.login(process.env.TOKEN);
