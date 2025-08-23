@@ -18,13 +18,12 @@ client.commands = new Collection();
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   
-  plugins: [
-   new YtDlpPlugin({
-      update: true,
-      cookies: "./cookies.txt", 
-    }),
-    new SpotifyPlugin(),
-  ]
+ plugins: [
+    new SpotifyPlugin({
+      parallel: true,
+      emitEventsAfterFetching: true
+    })
+  ],
 });
 
 
