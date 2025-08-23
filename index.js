@@ -28,8 +28,15 @@ const client = new Client({
 
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
- 
-  plugins: [new YtDlpPlugin()]
+  
+  plugins: [
+   new YtDlpPlugin({
+      update: true,
+      cookies: "./cookies.txt", 
+    }),
+    new SpotifyPlugin(),
+    new SoundCloudPlugin()
+  ]
 });
 
 
