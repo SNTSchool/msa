@@ -20,7 +20,10 @@ client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   
   plugins: [
-    new YtDlpPlugin(),
+   new YtDlpPlugin({
+      update: true,
+      cookies: "./cookies.txt", 
+    }),
     new SpotifyPlugin(),
     new SoundCloudPlugin()
   ]
