@@ -14,7 +14,6 @@ const path = require('path');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { DisTube } = require('distube');
-const { YtDlpPlugin } = require('@distube/yt-dlp');
 const { SpotifyPlugin } = require('@distube/spotify');
 
 
@@ -30,13 +29,12 @@ const client = new Client({
 client.distube = new DisTube(client, {
   emitNewSongOnly: true,
   
-  plugins: [
-   new YtDlpPlugin({
-      update: true,
-      cookies: "./cookies.txt", 
-    }),
-    new SpotifyPlugin(),
-  ]
+ plugins: [
+    new SpotifyPlugin({
+      parallel: true,
+      emitEventsAfterFetching: true
+    })
+  ],
 });
 
 
