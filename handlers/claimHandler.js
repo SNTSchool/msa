@@ -77,9 +77,11 @@ async function handleUnclaim(interaction, ticketId) {
   });
 
   try {
+    console.log('a')
     // ตรวจสอบว่า ticketId เป็น string ที่ถูกต้อง
     const cleanId = typeof ticketId === 'string' ? ticketId.trim() : String(ticketId);
     const newName = `ticket-${cleanId}`;
+    console.log('b')
 
     // ตรวจสอบ permission ก่อนเปลี่ยนชื่อ
     const hasPermission = channel.permissionsFor(channel.guild.members.me)?.has('ManageChannels');
@@ -90,6 +92,7 @@ async function handleUnclaim(interaction, ticketId) {
         ephemeral: true
       });
     }
+    console.log('c')
 
     // เปลี่ยนชื่อ channel
     if (channel.name !== newName) {
@@ -98,9 +101,11 @@ async function handleUnclaim(interaction, ticketId) {
     } else {
       console.log(`ℹ️ ชื่อ channel เป็น ${newName} อยู่แล้ว ไม่ต้องเปลี่ยน`);
     }
+    console.log('d')
 
     // เปลี่ยน topic
     await channel.setTopic(`Unclaimed`);
+    console.log('e')
 
     // อัปเดต UI และล้าง claimer
     await updateTicketUI(channel, 'open');
