@@ -14,7 +14,7 @@ const path = require('path');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds], GatewayIntentBits.GuildVoiceStates });
 client.commands = new Collection();
 
 const VOICE_CHANNEL_ID = '1407734133962309663';
