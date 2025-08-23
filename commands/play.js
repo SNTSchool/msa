@@ -12,11 +12,9 @@ module.exports = {
 
   async execute(interaction, client) {
     const query = interaction.options.getString('query', true);
-    const voiceChannel = interaction.member.voice.channel;
-
-    if (!voiceChannel) {
-      return interaction.reply({ content: '❌ เข้าห้องเสียงก่อนนะครับ', ephemeral: true });
-    }
+    const member = await interaction.guild.members.fetch(interaction.user.id);
+    const voiceChannel = member.voice.channel;
+    if (!voiceChannel) return interaction.reply({ content: '❌ เข้าห้องเสียงก่อนนะครับ', ephemeral: true });
 
     try {
       await client.distube.play(voiceChannel, query, {
