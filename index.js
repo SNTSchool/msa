@@ -33,6 +33,30 @@ app.get('/verify', (req, res) => {
   res.json({ message: '✅ Verification endpoint is active' });
 });
 
+
+async function logToGoogleSheet(username, userId) {
+  const auth = new google.auth.GoogleAuth({
+    credentials: {
+      project_id: process.env.GOOGLE_PROJECT_ID,
+      client_email: process.env.GOOGLE_CLIENT_EMAIL,
+      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    },
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  });
+
+  const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: process.env.SHEET_ID,
+    range: 'VerifyData!A1',
+    valueInputOption: 'RAW',
+    requestBody: {
+      values: [[username, userId, new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })]]
+    }
+  });
+}
+
+
 app.post('/verify', (req, res) => {
   const { username, userId } = req.body;
   if (!username || !userId) {
