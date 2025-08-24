@@ -8,6 +8,7 @@
   "dependencies": {
     "discord.js": "^14.13.0",
     "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
     "distube": "^5.0.7",
     "@distube/yt-dlp": "^2.0.1",
     "@distube/youtube": "^1.0.4",
@@ -21,6 +22,8 @@
     "canvas": "^2.11.2",
     "pdfkit": "^0.13.0",
     "moment-timezone": "^0.5.43",
+    "body-parser": "^1.20.2",
+    "node-fetch": "^2.6.7",
     "node-cron": "^3.0.3",
      "@discordjs/voice": "^0.17.0",
     "@snazzah/davey": "^0.1.6"
