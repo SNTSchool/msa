@@ -1,24 +1,51 @@
+// src/commands/verify.js
+
 const { SlashCommandBuilder } = require('discord.js');
-const { addPending } = require('../utils/pending');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('verify')
-    .setDescription('ยืนยันบัญชี Roblox ของคุณ')
-    .addStringOption(opt =>
-      opt.setName('roblox_username')
-         .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
-         .setRequired(true)
-    ),
+    .setDescription('ยืนยันตัวตนของผู้ใช้'),
+
   async execute(interaction) {
-    const robloxUsername = interaction.options.getString('roblox_username');
-    const discordId = interaction.user.id;
+    try {
+      // ✅ ป้องกัน interaction หมดอายุ
+      await interaction.deferReply({ ephemeral: true });
 
-    addPending(discordId, robloxUsername);
+      // 🧠 ตัวอย่างการตรวจสอบข้อมูล (mock)
+      const userId = interaction.user.id;
+      const isVerified = await checkUserVerification(userId); // สมมุติว่ามีฟังก์ชันนี้
 
-    await interaction.reply({
-      content: `✅ กรุณาเข้าเกม Roblox เพื่อยืนยันบัญชีของคุณ (${robloxUsername}) ภายใน 10 นาที`,
-      ephemeral: true
-    });
-  }
+      if (isVerified) {
+        await interaction.editReply({
+          content: '✅ คุณได้รับการยืนยันแล้ว!',
+        });
+      } else {
+        await interaction.editReply({
+          content: '❌ ไม่พบข้อมูลการยืนยันของคุณ กรุณาติดต่อผู้ดูแลระบบ',
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in verify command:', error);
+
+      // 🛡️ fallback ป้องกัน error 40060
+      if (interaction.replied || interaction.deferred) {
+        await interaction.followUp({
+          content: '⚠️ เกิดข้อผิดพลาดในการยืนยัน กรุณาลองใหม่อีกครั้ง',
+          ephemeral: true,
+        });
+      } else {
+        await interaction.reply({
+          content: '⚠️ เกิดข้อผิดพลาดในการยืนยัน กรุณาลองใหม่อีกครั้ง',
+          ephemeral: true,
+        });
+      }
+    }
+  },
 };
+
+// 🔧 mock function สำหรับตรวจสอบการยืนยัน
+async function checkUserVerification(userId) {
+ 
+  return parseInt(userId[userId.length - 1]) % 2 === 0;
+}
