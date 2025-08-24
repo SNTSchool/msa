@@ -7,7 +7,7 @@ app.use(express.json());
 
 // ✅ Routes
 app.get('/', (req, res) => {
-  res.send('🎉 Server is running!');
+ res.json({ status: 'ok' });
 });
 
 // ✅ Export app for external use
