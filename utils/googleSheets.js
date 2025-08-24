@@ -11,13 +11,13 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 
-const TRANSCRIPT_SHEET_ID = process.env.TRANSCRIPT_SHEET_ID;
-const VERIFICATION_SHEET_ID = process.env.VERIFICATION_SHEET_ID;
+const spreadsheetId = process.env.SPREADSHEET_ID;
+
 
 /**
  * ดึง Ticket ID ถัดไปจาก Sheet
  */
-async function getNextTicketId(spreadsheetId = TRANSCRIPT_SHEET_ID) {
+async function getNextTicketId(spreadsheetId) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: 'Transcript!A:A',
@@ -38,7 +38,7 @@ async function getNextTicketId(spreadsheetId = TRANSCRIPT_SHEET_ID) {
 /**
  * เพิ่มแถวใหม่ตอนสร้าง Ticket
  */
-async function appendRow(spreadsheetId = TRANSCRIPT_SHEET_ID, rowData) {
+async function appendRow(spreadsheetId, rowData) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: 'Transcript!A1',
@@ -53,7 +53,7 @@ async function appendRow(spreadsheetId = TRANSCRIPT_SHEET_ID, rowData) {
 /**
  * อัปเดตข้อมูล Ticket ตอนปิด เช่น transcript, เหตุผล, timestamp
  */
-async function updateTicketRow(spreadsheetId = TRANSCRIPT_SHEET_ID, ticketId, updates) {
+async function updateTicketRow(spreadsheetId, ticketId, updates) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: 'Transcript!A1:I',
@@ -95,11 +95,11 @@ async function updateTicketRow(spreadsheetId = TRANSCRIPT_SHEET_ID, ticketId, up
 /**
  * บันทึกการยืนยันบัญชี Roblox ลง Google Sheet
  */
-async function appendVerification(discordName, robloxUsername, timestamp, spreadsheetId = VERIFICATION_SHEET_ID) {
+async function appendVerification(discordName, robloxUsername, timestamp, spreadsheetId) {
   try {
     await sheets.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Roblox Verifications!A2:C',
+      range: 'Verifydata!A2:C',
       valueInputOption: 'USER_ENTERED',
       requestBody: {
         values: [[discordName, robloxUsername, timestamp]],
