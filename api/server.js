@@ -2,7 +2,8 @@ const express = require('express');
 const { getPendingByUsername, removePending } = require('../utils/pending');
 const { appendVerification } = require('../utils/sheets');
 const { getThaiTimestamp } = require('../utils/time');
-const { discordToken, guildId, port } = require('../config/config');
+const  discordToken = process.env.TOKEN;
+const guildId = process.env.GUILD_ID;
 const { Client, GatewayIntentBits } = require('discord.js');
 
 const app = express();
@@ -38,7 +39,7 @@ app.get('/', (req, res) => res.send('Roblox verification API is running'));
 
 client.once('ready', () => {
   console.log(`🤖 Discord bot logged in as ${client.user.tag}`);
-  app.listen(port, () => console.log(`🌐 API listening on port ${port}`));
+  app.listen(10000, () => console.log(`🌐 API listening on port ${10000}`));
 });
 
 client.login(discordToken);
