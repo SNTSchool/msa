@@ -4,45 +4,41 @@ const fetch = require('node-fetch');
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('verify')
-    .setDescription('ยืนยันตัวตนของคุณผ่านระบบ /verify API')
-    .addStringOption(option =>
-      option.setName('username')
-        .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
-        .setRequired(true))
-    .addStringOption(option =>
-      option.setName('userid')
-        .setDescription('User ID ของคุณใน Roblox')
-        .setRequired(true)),
+    .setDescription('ยืนยันตัวตนของคุณ'),
 
   async execute(interaction) {
-    const username = interaction.options.getString('username');
-    const userId = interaction.options.getString('userid');
+    await interaction.deferReply({ ephemeral: true }); // ป้องกัน timeout และแสดงเฉพาะผู้ใช้
+
+    const userId = interaction.user.id;
+    const username = interaction.user.username;
 
     try {
       const response = await fetch(`https://msa-ebw0.onrender.com/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, userId })
+        body: JSON.stringify({ userId, username })
       });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status} ${response.statusText}`);
+      }
 
       const result = await response.json();
 
       if (result.success) {
-        await interaction.reply({
-          content: `✅ ยืนยันสำเร็จสำหรับ **${username}** (ID: ${userId})`,
-          ephemeral: true
+        await interaction.editReply({
+          content: `✅ ยืนยันสำเร็จสำหรับ <@${userId}> (${username})`
         });
       } else {
-        await interaction.reply({
-          content: `❌ ไม่สามารถยืนยันได้: ${result.message || 'ไม่ทราบสาเหตุ'}`,
-          ephemeral: true
+        await interaction.editReply({
+          content: `⚠️ ไม่สามารถยืนยันได้: ${result.message || 'ไม่ทราบสาเหตุ'}`
         });
       }
+
     } catch (error) {
-      console.error('🚨 API error:', error);
-      await interaction.reply({
-        content: 'เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบยืนยัน 😢',
-        ephemeral: true
+      console.error('Verify error:', error);
+      await interaction.editReply({
+        content: `❌ เกิดข้อผิดพลาดในการยืนยัน: ${error.message}`
       });
     }
   }
