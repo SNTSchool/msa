@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const app = express();
-const port = 10000;
+const port = process.env.PORT || 3000
 
 // ✅ Middleware
 app.use(cors()); // อนุญาตทุก origin (ปรับตามต้องการ)
@@ -54,7 +54,4 @@ app.use((req, res) => {
   res.status(404).send('❌ Route not found');
 });
 
-// ✅ เริ่มเซิร์ฟเวอร์
-app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
-});
+
