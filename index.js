@@ -1,50 +1,60 @@
 require('dotenv').config();
-const { 
-  Client, 
-  GatewayIntentBits, 
-  Collection, 
-  ActivityType, 
-  SlashCommandBuilder, 
-  REST, 
-  Routes 
-} = require('discord.js');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
+const { Client, GatewayIntentBits, Collection, ActivityType, SlashCommandBuilder, REST, Routes } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 
-require('./api/server');
-
-
-const client = new Client({ 
-  intents: [
-    GatewayIntentBits.Guilds, 
-    GatewayIntentBits.GuildVoiceStates
-  ] 
+const app = express();
+const client = new Client({
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
 });
-
-
-client.distube = new DisTube(client, {
-  emitNewSongOnly: true,
-  
- plugins: [
-   new SpotifyPlugin()
-  ],
-});
-
-
-
-
 
 client.commands = new Collection();
+client.distube = new DisTube(client, {
+  emitNewSongOnly: true,
+  plugins: [new SpotifyPlugin()]
+});
 
 const VOICE_CHANNEL_ID = '1407734133962309663';
 let customOverride = null;
 
-// โหลดคำสั่งจาก ./commands
+//
+// 🔧 Express API
+//
+app.use(express.json());
+
+app.get('/', (req, res) => res.json({ status: 'Bot is running' }));
+
+app.get('/verify', (req, res) => {
+  res.json({ message: '✅ Verification endpoint is active' });
+});
+
+app.post('/verify', (req, res) => {
+  const { username, userId } = req.body;
+  if (!username || !userId) {
+    return res.status(400).json({ success: false, message: 'Missing username or userId' });
+  }
+
+  // 🔐 ตรงนี้สามารถเชื่อมกับ Google Sheets หรือระบบยืนยันได้
+  console.log(`✅ Verification received: ${username} (${userId})`);
+  res.json({ success: true, message: 'Verified!' });
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log('🌐 Express server is running');
+});
+
+//
+// ⚙️ โหลดคำสั่งและ events
+//
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
@@ -55,7 +65,6 @@ for (const file of commandFiles) {
   }
 }
 
-// โหลด events จาก ./events
 const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
 for (const file of eventFiles) {
   const event = require(`./events/${file}`);
@@ -66,15 +75,9 @@ for (const file of eventFiles) {
   }
 }
 
-// Express server สำหรับ Render
-const app = express();
-app.get('/', (req, res) => res.json('Bot is running'));
-app.get('/verify', (req, res) => res.json('wololw'));
-app.listen(process.env.PORT || 10000, () => {
-  console.log('Web service is running');
-});
-
+//
 // 🟣 ตั้งสถานะ Streaming และเริ่ม cron job
+//
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   client.user.setActivity('ช่วยงานสุดหล่อ', {
@@ -86,16 +89,13 @@ client.once('ready', async () => {
   scheduleShopStatus();
 });
 
-// 🛠️ ลงทะเบียนคำสั่งทั้งหมด (รวม /openshop และ /closeshop)
 async function registerAllCommands() {
   const commands = [];
 
-  // commands จากโฟลเดอร์ ./commands
   for (const [name, command] of client.commands) {
     commands.push(command.data.toJSON());
   }
 
-  // เพิ่ม override commands
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
     new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON()
@@ -110,10 +110,9 @@ async function registerAllCommands() {
   console.log('✅ Registered all commands');
 }
 
-// 🕒 ตรวจสอบสถานะร้านตามเวลา GMT+7
 function getScheduledStatus() {
   const now = moment().tz('Asia/Bangkok');
-  const day = now.day(); // 0 = Sunday
+  const day = now.day();
   const hour = now.hour();
   const minute = now.minute();
   const time = hour + minute / 60;
@@ -130,7 +129,6 @@ function getScheduledStatus() {
   return 'closed';
 }
 
-// 🔁 เปลี่ยนชื่อช่องเสียงตามสถานะ
 async function updateVoiceChannelStatus() {
   const status = getScheduledStatus();
   const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
@@ -143,18 +141,15 @@ async function updateVoiceChannelStatus() {
   }
 }
 
-// ⏱️ ตั้ง cron job ทุก 5 นาที
 function scheduleShopStatus() {
   cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
 }
 
-// 🧠 จัดการ interaction
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
   const command = client.commands.get(interaction.commandName);
 
-  // override commands
   if (interaction.commandName === 'openshop') {
     customOverride = 'open';
     await updateVoiceChannelStatus();
@@ -167,7 +162,6 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
   }
 
-  // commands จาก ./commands
   if (!command) return;
 
   try {
