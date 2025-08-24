@@ -48,7 +48,7 @@ async function logToGoogleSheet(username, userId) {
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
 
   await sheets.spreadsheets.values.append({
-    spreadsheetId: process.env.SHEET_ID,
+    spreadsheetId: process.env.SPREADSHEET_ID,
     range: 'VerifyData!A1',
     valueInputOption: 'RAW',
     requestBody: {
