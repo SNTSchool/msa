@@ -1,12 +1,10 @@
-// command/verify.js
-
 const { SlashCommandBuilder } = require('discord.js');
 const fetch = require('node-fetch');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('verify')
-    .setDescription('ยืนยันตัวตนของคุณผ่านระบบ API')
+    .setDescription('ยืนยันตัวตนของคุณผ่านระบบ /verify API')
     .addStringOption(option =>
       option.setName('username')
         .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
@@ -21,7 +19,7 @@ module.exports = {
     const userId = interaction.options.getString('userid');
 
     try {
-      const response = await fetch('https://msa-ebw0.onrender.com/verify', {
+      const response = await fetch(`${process.env.API_BASE_URL}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, userId })
@@ -36,7 +34,7 @@ module.exports = {
         });
       } else {
         await interaction.reply({
-          content: `❌ ไม่สามารถยืนยันได้: ${result.message}`,
+          content: `❌ ไม่สามารถยืนยันได้: ${result.message || 'ไม่ทราบสาเหตุ'}`,
           ephemeral: true
         });
       }
