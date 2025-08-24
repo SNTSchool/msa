@@ -11,10 +11,13 @@ const auth = new google.auth.GoogleAuth({
 
 const sheets = google.sheets({ version: 'v4', auth });
 
+const TRANSCRIPT_SHEET_ID = process.env.TRANSCRIPT_SHEET_ID;
+const VERIFICATION_SHEET_ID = process.env.VERIFICATION_SHEET_ID;
+
 /**
  * ดึง Ticket ID ถัดไปจาก Sheet
  */
-async function getNextTicketId(spreadsheetId) {
+async function getNextTicketId(spreadsheetId = TRANSCRIPT_SHEET_ID) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: 'Transcript!A:A',
@@ -35,7 +38,7 @@ async function getNextTicketId(spreadsheetId) {
 /**
  * เพิ่มแถวใหม่ตอนสร้าง Ticket
  */
-async function appendRow(spreadsheetId, rowData) {
+async function appendRow(spreadsheetId = TRANSCRIPT_SHEET_ID, rowData) {
   await sheets.spreadsheets.values.append({
     spreadsheetId,
     range: 'Transcript!A1',
@@ -50,7 +53,7 @@ async function appendRow(spreadsheetId, rowData) {
 /**
  * อัปเดตข้อมูล Ticket ตอนปิด เช่น transcript, เหตุผล, timestamp
  */
-async function updateTicketRow(spreadsheetId, ticketId, updates) {
+async function updateTicketRow(spreadsheetId = TRANSCRIPT_SHEET_ID, ticketId, updates) {
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: 'Transcript!A1:I',
@@ -65,7 +68,6 @@ async function updateTicketRow(spreadsheetId, ticketId, updates) {
 
   const row = rows[rowIndex];
 
-  // อัปเดตเฉพาะฟิลด์ที่ส่งมา
   const fieldMap = {
     status: 4,
     reason: 6,
@@ -90,8 +92,28 @@ async function updateTicketRow(spreadsheetId, ticketId, updates) {
   });
 }
 
+/**
+ * บันทึกการยืนยันบัญชี Roblox ลง Google Sheet
+ */
+async function appendVerification(discordName, robloxUsername, timestamp, spreadsheetId = VERIFICATION_SHEET_ID) {
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Roblox Verifications!A2:C',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [[discordName, robloxUsername, timestamp]],
+      },
+    });
+    console.log(`✅ บันทึกการยืนยันของ ${discordName} (${robloxUsername})`);
+  } catch (err) {
+    console.error('❌ เกิดข้อผิดพลาดในการบันทึกการยืนยัน:', err);
+  }
+}
+
 module.exports = {
   getNextTicketId,
   appendRow,
   updateTicketRow,
+  appendVerification,
 };
