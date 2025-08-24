@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
+const { google } = require('googleapis');
 const { Client, GatewayIntentBits, Collection, ActivityType, SlashCommandBuilder, REST, Routes } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
