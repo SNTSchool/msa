@@ -19,7 +19,7 @@ module.exports = {
     const userId = interaction.options.getString('userid');
 
     try {
-      const response = await fetch(`${process.env.API_BASE_URL}/verify`, {
+      const response = await fetch(`https://msa-ebw0.onrender.com/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, userId })
