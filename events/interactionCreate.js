@@ -79,7 +79,11 @@ module.exports = {
             {
               id: client.user.id,
               allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
-            }
+            },
+            ...STAFF_ROLE_IDS.map(roleId => ({
+              id: roleId,
+              allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages],
+            }))
           ]
         });
 
