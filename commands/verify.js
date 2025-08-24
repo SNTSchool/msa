@@ -1,51 +1,51 @@
-// src/commands/verify.js
+// command/verify.js
 
 const { SlashCommandBuilder } = require('discord.js');
+const fetch = require('node-fetch');
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('verify')
-    .setDescription('ยืนยันตัวตนของผู้ใช้'),
+    .setDescription('ยืนยันตัวตนของคุณผ่านระบบ API')
+    .addStringOption(option =>
+      option.setName('username')
+        .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
+        .setRequired(true))
+    .addStringOption(option =>
+      option.setName('userid')
+        .setDescription('User ID ของคุณใน Roblox')
+        .setRequired(true)),
 
   async execute(interaction) {
+    const username = interaction.options.getString('username');
+    const userId = interaction.options.getString('userid');
+
     try {
-      // ✅ ป้องกัน interaction หมดอายุ
-      await interaction.deferReply({ ephemeral: true });
+      const response = await fetch('https://msa-ebw0.onrender.com/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, userId })
+      });
 
-      // 🧠 ตัวอย่างการตรวจสอบข้อมูล (mock)
-      const userId = interaction.user.id;
-      const isVerified = await checkUserVerification(userId); // สมมุติว่ามีฟังก์ชันนี้
+      const result = await response.json();
 
-      if (isVerified) {
-        await interaction.editReply({
-          content: '✅ คุณได้รับการยืนยันแล้ว!',
-        });
-      } else {
-        await interaction.editReply({
-          content: '❌ ไม่พบข้อมูลการยืนยันของคุณ กรุณาติดต่อผู้ดูแลระบบ',
-        });
-      }
-    } catch (error) {
-      console.error('❌ Error in verify command:', error);
-
-      // 🛡️ fallback ป้องกัน error 40060
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({
-          content: '⚠️ เกิดข้อผิดพลาดในการยืนยัน กรุณาลองใหม่อีกครั้ง',
-          ephemeral: true,
+      if (result.success) {
+        await interaction.reply({
+          content: `✅ ยืนยันสำเร็จสำหรับ **${username}** (ID: ${userId})`,
+          ephemeral: true
         });
       } else {
         await interaction.reply({
-          content: '⚠️ เกิดข้อผิดพลาดในการยืนยัน กรุณาลองใหม่อีกครั้ง',
-          ephemeral: true,
+          content: `❌ ไม่สามารถยืนยันได้: ${result.message}`,
+          ephemeral: true
         });
       }
+    } catch (error) {
+      console.error('🚨 API error:', error);
+      await interaction.reply({
+        content: 'เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบยืนยัน 😢',
+        ephemeral: true
+      });
     }
-  },
+  }
 };
-
-// 🔧 mock function สำหรับตรวจสอบการยืนยัน
-async function checkUserVerification(userId) {
- 
-  return parseInt(userId[userId.length - 1]) % 2 === 0;
-}
