@@ -16,6 +16,7 @@ const moment = require('moment-timezone');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 
+require('./api/server');
 
 
 const client = new Client({ 
