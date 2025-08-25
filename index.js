@@ -129,7 +129,7 @@ async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Veri
 
   const newRow = [
     timestamp,
-   
+    discordUsername,
     discordUserId, 
     robloxUsername, 
     robloxUserId,
