@@ -9,7 +9,7 @@ const { Client, GatewayIntentBits, Collection, ActivityType, SlashCommandBuilder
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 
-const verifyStatus = new Map(); // ✅ Shared memory for verification
+const verifyStatus = require('./verifyStatus'); 
 
 const app = express();
 const client = new Client({
@@ -214,16 +214,6 @@ client.on('interactionCreate', async interaction => {
     customOverride = 'closed';
     await updateVoiceChannelStatus();
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
-  }
-
-  if (interaction.commandName === 'verify') {
-    const robloxUsername = interaction.options.getString('roblox_username');
-    verifyStatus.set(interaction.user.id, {
-      robloxUsername,
-      verified: true,
-      enteredGame: false
-    });
-    return interaction.reply({ content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`, ephemeral: true });
   }
 
   if (!command) return;
