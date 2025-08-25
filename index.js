@@ -54,6 +54,8 @@ app.post('/verify', async (req, res) => {
     data.robloxUsername.toLowerCase() === robloxUsername.toLowerCase() &&
     data.verified && !data.enteredGame
   );
+console.log('📦 verifyStatus:', [...verifyStatus.entries()]);
+console.log("🔍 Roblox sent:", robloxUsername);
 
   if (!entry) {
     console.log(`⚠️ ไม่พบการ verify สำหรับ ${robloxUsername}`);
