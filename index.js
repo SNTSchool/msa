@@ -46,7 +46,7 @@ app.post('/verify', (req, res) => {
   res.json({ success: true, message: 'Verified!' });
 });
 
-app.post('/roblox-entry', async (req, res) => {
+app.post('/verify', async (req, res) => {
   const { robloxUsername } = req.body;
   if (!robloxUsername) return res.status(400).json({ error: 'Missing robloxUsername' });
 
@@ -151,14 +151,6 @@ async function registerAllCommands() {
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
     new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder()
-      .setName('verify')
-      .setDescription('ยืนยันตัวตนของคุณผ่านระบบ')
-      .addStringOption(option =>
-        option.setName('roblox_username')
-          .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
-          .setRequired(true))
-      .toJSON()
   );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
