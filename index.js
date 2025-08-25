@@ -1,15 +1,12 @@
 require('dotenv').config();
-const express = require('express');
 const fs = require('fs');
-const path = require('path');
+const express = require('express');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { google } = require('googleapis');
-const { Client, GatewayIntentBits, Collection, ActivityType, SlashCommandBuilder, REST, Routes } = require('discord.js');
+const { Client, GatewayIntentBits, Collection, ActivityType, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
-
-const verifyStatus = require('./verifyStatus'); 
 
 const app = express();
 const client = new Client({
@@ -22,52 +19,49 @@ client.distube = new DisTube(client, {
   plugins: [new SpotifyPlugin()]
 });
 
-const VOICE_CHANNEL_ID = '1407734133962309663';
+const VOICE_CHANNEL_ID = process.env.VOICE_CHANNEL_ID;
 let customOverride = null;
+const verifyStatus = new Map();
 
 //
-// 🔧 Express API
+// 🌐 Express API
 //
 app.use(express.json());
 
 app.get('/', (req, res) => res.json({ status: 'Bot is running' }));
 
-app.get('/verify', (req, res) => {
-  res.json({ message: '✅ Verification endpoint is active' });
-});
-
 app.post('/verify', (req, res) => {
   const { username, userId } = req.body;
-  if (!username || !userId) {
-    return res.status(400).json({ success: false, message: 'Missing username or userId' });
-  }
+  if (!username || !userId) return res.status(400).json({ success: false, message: 'Missing data' });
 
-  console.log(`✅ Verification received: ${username} (${userId})`);
-  res.json({ success: true, message: 'Verified!' });
+  verifyStatus.set(userId, {
+    robloxUsername: username,
+    verified: true,
+    enteredGame: false
+  });
+
+  console.log(`✅ Verified: ${username} (${userId})`);
+  res.json({ success: true });
 });
 
 app.post('/verify', async (req, res) => {
   const { robloxUsername } = req.body;
   if (!robloxUsername) return res.status(400).json({ error: 'Missing robloxUsername' });
 
+  const normalized = robloxUsername.trim().toLowerCase();
   const entry = [...verifyStatus.entries()].find(([_, data]) =>
-    data.robloxUsername.toLowerCase() === robloxUsername.toLowerCase() &&
+    data.robloxUsername.trim().toLowerCase() === normalized &&
     data.verified && !data.enteredGame
   );
-console.log('📦 verifyStatus:', [...verifyStatus.entries()]);
-console.log("🔍 Roblox sent:", robloxUsername);
 
-  if (!entry) {
-    console.log(`⚠️ ไม่พบการ verify สำหรับ ${robloxUsername}`);
-    return res.status(404).json({ error: 'No matching verification found' });
-  }
+  if (!entry) return res.status(404).json({ error: 'No matching verification found' });
 
   const [discordUserId, data] = entry;
   data.enteredGame = true;
 
   try {
     await logToGoogleSheet(discordUserId, robloxUsername);
-    console.log(`✅ Logged ${robloxUsername} for Discord ID ${discordUserId}`);
+    console.log(`📋 Logged: ${robloxUsername} for Discord ID ${discordUserId}`);
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Google Sheets error:', error);
@@ -75,12 +69,8 @@ console.log("🔍 Roblox sent:", robloxUsername);
   }
 });
 
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
 app.listen(process.env.PORT || 3000, () => {
-  console.log('🌐 Express server is running');
+  console.log('🚀 Express server running');
 });
 
 async function logToGoogleSheet(discordUserId, robloxUsername) {
@@ -107,25 +97,13 @@ async function logToGoogleSheet(discordUserId, robloxUsername) {
 }
 
 //
-// ⚙️ โหลดคำสั่งและ events
+// 🧠 โหลดคำสั่งจาก /commands
 //
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
   const command = require(`./commands/${file}`);
   if ("data" in command && "execute" in command) {
     client.commands.set(command.data.name, command);
-  } else {
-    console.warn(`⚠️ คำสั่ง ${file} ไม่มี data หรือ execute`);
-  }
-}
-
-const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
-for (const file of eventFiles) {
-  const event = require(`./events/${file}`);
-  if (event.once) {
-    client.once(event.name, (...args) => event.execute(...args, client));
-  } else {
-    client.on(event.name, (...args) => event.execute(...args, client));
   }
 }
 
@@ -153,6 +131,14 @@ async function registerAllCommands() {
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
     new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON(),
+    new SlashCommandBuilder()
+      .setName('verify')
+      .setDescription('ยืนยันตัวตนผ่าน Roblox')
+      .addStringOption(option =>
+        option.setName('roblox_username')
+          .setDescription('ชื่อผู้ใช้ Roblox')
+          .setRequired(true))
+      .toJSON()
   );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -161,7 +147,7 @@ async function registerAllCommands() {
     { body: commands }
   );
 
-  console.log('✅ Registered all commands');
+  console.log('📦 Slash commands registered');
 }
 
 function getScheduledStatus() {
@@ -216,13 +202,23 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
   }
 
+  if (interaction.commandName === 'verify') {
+    const robloxUsername = interaction.options.getString('roblox_username');
+    verifyStatus.set(interaction.user.id, {
+      robloxUsername,
+      verified: true,
+      enteredGame: false
+    });
+    return interaction.reply({ content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว!`, ephemeral: true });
+  }
+
   if (!command) return;
 
   try {
     await command.execute(interaction, client);
   } catch (error) {
     console.error(error);
-    await interaction.reply({ content: '❌ มีข้อผิดพลาดในการรันคำสั่งนี้', ephemeral: true });
+    await interaction.reply({ content: '❌ เกิดข้อผิดพลาดในการทำงานของคำสั่ง', ephemeral: true });
   }
 });
 
