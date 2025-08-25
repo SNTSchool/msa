@@ -30,6 +30,7 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.json({ status: 'Bot is running' }));
 
+// ✅ verify ผ่าน API (เก็บ username + discord id)
 app.post('/verify', (req, res) => {
   const { username, userId } = req.body;
   if (!username || !userId) return res.status(400).json({ success: false, message: 'Missing data' });
@@ -44,6 +45,7 @@ app.post('/verify', (req, res) => {
   res.json({ success: true });
 });
 
+// ✅ รับข้อมูลจาก Roblox เมื่อผู้ใช้เข้าเกม
 app.post('/roblox-entry', async (req, res) => {
   const { robloxUsername } = req.body;
   if (!robloxUsername) return res.status(400).json({ error: 'Missing robloxUsername' });
@@ -60,7 +62,7 @@ app.post('/roblox-entry', async (req, res) => {
   data.enteredGame = true;
 
   try {
-    await logToGoogleSheet(discordUserId, robloxUsername);
+    await logToGoogleSheet(discordUserId, robloxUsername, 'Game Entry');
     console.log(`📋 Logged: ${robloxUsername} for Discord ID ${discordUserId}`);
     res.json({ success: true });
   } catch (error) {
@@ -73,7 +75,10 @@ app.listen(process.env.PORT || 3000, () => {
   console.log('🚀 Express server running');
 });
 
-async function logToGoogleSheet(discordUserId, robloxUsername) {
+//
+// 📋 log ลง Google Sheets (รวม logic update/append)
+//
+async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Verified') {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       project_id: process.env.GOOGLE_PROJECT_ID,
@@ -84,20 +89,46 @@ async function logToGoogleSheet(discordUserId, robloxUsername) {
   });
 
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
-  const timestamp = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
+  const timestamp = moment().tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss');
 
-  await sheets.spreadsheets.values.append({
+  const sheetRange = 'VerifyData!A2:G';
+  const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.SPREADSHEET_ID,
-    range: 'VerifyData!A1',
-    valueInputOption: 'RAW',
-    requestBody: {
-      values: [[timestamp, discordUserId, robloxUsername, 'Verified']]
-    }
+    range: sheetRange
   });
+
+  const rows = res.data.values || [];
+  const rowIndex = rows.findIndex(row => row[1] === discordUserId);
+
+  const newRow = [
+    timestamp,
+    discordUserId,
+    '', // Roblox UserID (ยังไม่ได้ดึงจาก API)
+    '', // Discord Username (ยังไม่ได้ดึงจาก Discord API)
+    robloxUsername,
+    'Verified',
+    viaMethod
+  ];
+
+  if (rowIndex >= 0) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: `VerifyData!A${rowIndex + 2}:G${rowIndex + 2}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [newRow] }
+    });
+  } else {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.SPREADSHEET_ID,
+      range: 'VerifyData!A1',
+      valueInputOption: 'RAW',
+      requestBody: { values: [newRow] }
+    });
+  }
 }
 
 //
-// 🧠 โหลดคำสั่งจาก /commands
+// 🧠 โหลดคำสั่งจาก /commands + เพิ่มคำสั่ง verify/openshop/closeshop
 //
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
@@ -108,14 +139,11 @@ for (const file of commandFiles) {
 }
 
 //
-// 🟣 ตั้งสถานะ Streaming และเริ่ม cron job
+// 🟣 Bot ready
 //
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  client.user.setActivity('ช่วยงานสุดหล่อ', {
-    type: ActivityType.Streaming,
-    url: 'https://www.twitch.tv/idleaccountdun'
-  });
+  client.user.setActivity('ยืนยันตัวตน Roblox', { type: ActivityType.Watching });
 
   await registerAllCommands();
   scheduleShopStatus();
@@ -150,6 +178,9 @@ async function registerAllCommands() {
   console.log('📦 Slash commands registered');
 }
 
+//
+// 🕒 ระบบร้านค้าเปิด-ปิด auto
+//
 function getScheduledStatus() {
   const now = moment().tz('Asia/Bangkok');
   const day = now.day();
@@ -170,14 +201,18 @@ function getScheduledStatus() {
 }
 
 async function updateVoiceChannelStatus() {
-  const status = getScheduledStatus();
-  const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
-  if (!channel) return;
+  try {
+    const status = getScheduledStatus();
+    const channel = await client.channels.fetch(VOICE_CHANNEL_ID);
+    if (!channel) return;
 
-  const newName = `︰สถานะร้าน-${status === 'open' ? 'เปิด' : 'ปิด'}`;
-  if (channel.name !== newName) {
-    await channel.setName(newName);
-    console.log(`🔄 เปลี่ยนชื่อช่องเป็น ${newName}`);
+    const newName = `︰สถานะร้าน-${status === 'open' ? 'เปิด' : 'ปิด'}`;
+    if (channel.name !== newName) {
+      await channel.setName(newName);
+      console.log(`🔄 เปลี่ยนชื่อช่องเป็น ${newName}`);
+    }
+  } catch (err) {
+    console.error('❌ updateVoiceChannelStatus error:', err.message);
   }
 }
 
@@ -185,6 +220,9 @@ function scheduleShopStatus() {
   cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
 }
 
+//
+// 🎮 Command Handler
+//
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
 
@@ -209,7 +247,13 @@ client.on('interactionCreate', async interaction => {
       verified: true,
       enteredGame: false
     });
-    return interaction.reply({ content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว!`, ephemeral: true });
+
+    await logToGoogleSheet(interaction.user.id, robloxUsername, 'Slash Command');
+
+    return interaction.reply({
+      content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`,
+      ephemeral: true
+    });
   }
 
   if (!command) return;
