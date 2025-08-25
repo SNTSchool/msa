@@ -44,7 +44,7 @@ app.post('/verify', (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/verify', async (req, res) => {
+app.post('/roblox-entry', async (req, res) => {
   const { robloxUsername } = req.body;
   if (!robloxUsername) return res.status(400).json({ error: 'Missing robloxUsername' });
 
