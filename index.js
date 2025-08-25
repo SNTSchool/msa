@@ -194,8 +194,11 @@ for (const file of commandFiles) {
 //
 client.once('ready', async () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  client.user.setActivity('ยืนยันตัวตน Roblox', { type: ActivityType.Watching });
-
+   client.user.setActivity('ช่วยงานสุดหล่อ', {
+    type: ActivityType.Streaming,
+    url: 'https://www.twitch.tv/idleaccountdun'
+  });
+  
   await registerAllCommands();
   scheduleShopStatus();
 
