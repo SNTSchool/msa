@@ -91,6 +91,12 @@ async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Veri
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
   const timestamp = moment().tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss');
 
+  const discordUser = await client.users.fetch(discordUserId).catch(() => null);
+  const discordUsername = discordUser ? discordUser.tag : 'Unknown';
+
+  // TODO: ถ้ามีระบบดึง Roblox UserID จาก API จะมาแทนตรงนี้
+  const robloxUserId = '';
+
   const sheetRange = 'VerifyData!A2:G';
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: process.env.SPREADSHEET_ID,
@@ -98,14 +104,14 @@ async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Veri
   });
 
   const rows = res.data.values || [];
-  const rowIndex = rows.findIndex(row => row[1] === discordUserId);
+  const rowIndex = rows.findIndex(row => row[2] === discordUserId);
 
   const newRow = [
     timestamp,
-    discordUserId,
-    '', // Roblox UserID (ยังไม่ได้ดึงจาก API)
-    '', // Discord Username (ยังไม่ได้ดึงจาก Discord API)
-    robloxUsername,
+   
+    discordUserId, 
+    robloxUsername, 
+    robloxUserId,
     'Verified',
     viaMethod
   ];
