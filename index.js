@@ -60,10 +60,10 @@ app.post('/roblox-entry', async (req, res) => {
   if (!entry) return res.status(404).json({ error: 'No matching verification found' });
 
   const [discordUserId, data] = entry;
-  data.enteredGame = true;
+  data.enteredGame = true; 
 
   try {
-    await logToGoogleSheet(discordUserId, robloxUsername, 'Game Entry');
+    await logToGoogleSheet(discordUserId, robloxUsername, 'Final Verification');
     console.log(`📋 Logged: ${robloxUsername} for Discord ID ${discordUserId}`);
     res.json({ success: true });
   } catch (error) {
@@ -267,21 +267,19 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
   }
 
-  if (interaction.commandName === 'verify') {
-    const robloxUsername = interaction.options.getString('roblox_username');
-    verifyStatus.set(interaction.user.id, {
-      robloxUsername,
-      verified: true,
-      enteredGame: false
-    });
+ if (interaction.commandName === 'verify') {
+  const robloxUsername = interaction.options.getString('roblox_username');
+  verifyStatus.set(interaction.user.id, {
+    robloxUsername,
+    verified: true,
+    enteredGame: false
+  });
 
-    await logToGoogleSheet(interaction.user.id, robloxUsername, 'Slash Command');
-
-    return interaction.reply({
-      content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`,
-      ephemeral: true
-    });
-  }
+  return interaction.reply({
+    content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`,
+    ephemeral: true
+  });
+}
 
   if (!command) return;
 
