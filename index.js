@@ -20,7 +20,7 @@ client.distube = new DisTube(client, {
   plugins: [new SpotifyPlugin()]
 });
 
-const VOICE_CHANNEL_ID = 1407734133962309663;
+const VOICE_CHANNEL_ID = '1407734133962309663';
 let customOverride = null;
 const verifyStatus = new Map();
 
