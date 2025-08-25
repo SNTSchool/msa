@@ -4,7 +4,10 @@ const express = require('express');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { google } = require('googleapis');
-const { Client, GatewayIntentBits, Collection, ActivityType, REST, Routes, SlashCommandBuilder } = require('discord.js');
+const { 
+  Client, GatewayIntentBits, Collection, ActivityType, REST, Routes, SlashCommandBuilder,
+  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+} = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 const fetch = require('node-fetch');
@@ -53,7 +56,7 @@ app.post('/roblox-entry', async (req, res) => {
 
   const normalized = robloxUsername.trim().toLowerCase();
   const entry = [...verifyStatus.entries()].find(([_, data]) =>
-    data.robloxUsername.trim().toLowerCase() === normalized &&
+    data.robloxUsername?.trim().toLowerCase() === normalized &&
     data.verified && !data.enteredGame
   );
 
@@ -63,7 +66,7 @@ app.post('/roblox-entry', async (req, res) => {
   data.enteredGame = true; 
 
   try {
-    await logToGoogleSheet(discordUserId, robloxUsername, 'Final Verification');
+    await logToGoogleSheet(discordUserId, robloxUsername, 'Game Entry');
     console.log(`📋 Logged: ${robloxUsername} for Discord ID ${discordUserId}`);
     res.json({ success: true });
   } catch (error) {
@@ -76,6 +79,9 @@ app.listen(process.env.PORT || 3000, () => {
   console.log('🚀 Express server running');
 });
 
+//
+// 🔑 Roblox API helper
+//
 async function getRobloxUserId(username) {
   try {
     const res = await fetch("https://users.roblox.com/v1/usernames/users", {
@@ -97,8 +103,9 @@ async function getRobloxUserId(username) {
   }
 }
 
-
-
+//
+// 📊 Log ไป Google Sheets
+//
 async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Verified') {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -115,8 +122,7 @@ async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Veri
   const discordUser = await client.users.fetch(discordUserId).catch(() => null);
   const discordUsername = discordUser ? discordUser.tag : 'Unknown';
 
-  // TODO: ถ้ามีระบบดึง Roblox UserID จาก API จะมาแทนตรงนี้
- const robloxUserId = await getRobloxUserId(robloxUsername);
+  const robloxUserId = await getRobloxUserId(robloxUsername);
 
   const sheetRange = 'VerifyData!A2:G';
   const res = await sheets.spreadsheets.values.get({
@@ -155,7 +161,25 @@ async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Veri
 }
 
 //
-// 🧠 โหลดคำสั่งจาก /commands + เพิ่มคำสั่ง verify/openshop/closeshop
+// 🎲 Random phrase สำหรับ description
+//
+function generateVerificationPhrase() {
+  const subjects = ["I", "We", "They", "Someone", "A friend", "My cat"];
+  const verbs = ["enjoy", "like", "love", "prefer", "sometimes eat", "dream about"];
+  const objects = ["apples", "dancing in the rain", "purple cats", "flying cars", "building sandcastles", "watching the stars"];
+  const extras = ["every morning", "at night", "when it rains", "on Sundays", "while coding"];
+
+  return `${subjects[Math.floor(Math.random() * subjects.length)]} ${
+    verbs[Math.floor(Math.random() * verbs.length)]
+  } ${
+    objects[Math.floor(Math.random() * objects.length)]
+  } ${
+    extras[Math.floor(Math.random() * extras.length)]
+  }.`;
+}
+
+//
+// 🧠 โหลด commands
 //
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 for (const file of commandFiles) {
@@ -174,26 +198,40 @@ client.once('ready', async () => {
 
   await registerAllCommands();
   scheduleShopStatus();
+
+  // ส่ง embed + ปุ่มเลือก verify
+  const channel = await client.channels.fetch('1409549096385122436');
+  const embed = new EmbedBuilder()
+    .setTitle("🔐 เชื่อมบัญชี Roblox")
+    .setDescription("เลือกวิธีการเชื่อมบัญชี Roblox และ Discord ของคุณ")
+    .setColor(0x76c255);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("verify_game")
+      .setLabel("🎮 Verify via Game Entry")
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId("verify_description")
+      .setLabel("📝 Verify via Profile Description")
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  await channel.send({ embeds: [embed], components: [row] });
 });
 
+//
+// 📋 Register commands (ลบ verify ออก)
+//
 async function registerAllCommands() {
   const commands = [];
-
   for (const [name, command] of client.commands) {
     commands.push(command.data.toJSON());
   }
 
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder()
-      .setName('verify')
-      .setDescription('ยืนยันตัวตนผ่าน Roblox')
-      .addStringOption(option =>
-        option.setName('roblox_username')
-          .setDescription('ชื่อผู้ใช้ Roblox')
-          .setRequired(true))
-      .toJSON()
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON()
   );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -206,7 +244,7 @@ async function registerAllCommands() {
 }
 
 //
-// 🕒 ระบบร้านค้าเปิด-ปิด auto
+// 🕒 ระบบร้าน auto
 //
 function getScheduledStatus() {
   const now = moment().tz('Asia/Bangkok');
@@ -248,11 +286,42 @@ function scheduleShopStatus() {
 }
 
 //
-// 🎮 Command Handler
+// 🎮 Interaction Handler
 //
 client.on('interactionCreate', async interaction => {
-  if (!interaction.isChatInputCommand()) return;
+  if (interaction.isButton()) {
+    const discordUserId = interaction.user.id;
 
+    if (interaction.customId === "verify_game") {
+      verifyStatus.set(discordUserId, {
+        method: "game",
+        verified: true,
+        enteredGame: false
+      });
+
+      return interaction.reply({
+        content: `🎮 คุณเลือกวิธี **Verify ด้วยการเข้าเกม**\nกรุณาเข้าเกม Roblox เพื่อตรวจสอบขั้นสุดท้าย!`,
+        ephemeral: true
+      });
+    }
+
+    if (interaction.customId === "verify_description") {
+      const phrase = generateVerificationPhrase();
+      verifyStatus.set(discordUserId, {
+        method: "description",
+        phrase,
+        verified: true,
+        enteredGame: false
+      });
+
+      return interaction.reply({
+        content: `📝 คุณเลือกวิธี **Verify ด้วย Profile Description**\nกรุณาแก้ Roblox **Profile Description** ของคุณเป็น:\n\`\`\`${phrase}\`\`\`\nแล้วให้ระบบตรวจสอบอีกครั้ง`,
+        ephemeral: true
+      });
+    }
+  }
+
+  if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
 
   if (interaction.commandName === 'openshop') {
@@ -267,22 +336,7 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
   }
 
- if (interaction.commandName === 'verify') {
-  const robloxUsername = interaction.options.getString('roblox_username');
-  verifyStatus.set(interaction.user.id, {
-    robloxUsername,
-    verified: true,
-    enteredGame: false
-  });
-
-  return interaction.reply({
-    content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`,
-    ephemeral: true
-  });
-}
-
   if (!command) return;
-
   try {
     await command.execute(interaction, client);
   } catch (error) {
