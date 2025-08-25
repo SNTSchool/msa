@@ -9,6 +9,8 @@ const { Client, GatewayIntentBits, Collection, ActivityType, SlashCommandBuilder
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
 
+const verifyStatus = new Map(); // ✅ Shared memory for verification
+
 const app = express();
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildVoiceStates]
@@ -34,8 +36,52 @@ app.get('/verify', (req, res) => {
   res.json({ message: '✅ Verification endpoint is active' });
 });
 
+app.post('/verify', (req, res) => {
+  const { username, userId } = req.body;
+  if (!username || !userId) {
+    return res.status(400).json({ success: false, message: 'Missing username or userId' });
+  }
 
-async function logToGoogleSheet(username, userId) {
+  console.log(`✅ Verification received: ${username} (${userId})`);
+  res.json({ success: true, message: 'Verified!' });
+});
+
+app.post('/roblox-entry', async (req, res) => {
+  const { robloxUsername } = req.body;
+  if (!robloxUsername) return res.status(400).json({ error: 'Missing robloxUsername' });
+
+  const entry = [...verifyStatus.entries()].find(([_, data]) =>
+    data.robloxUsername.toLowerCase() === robloxUsername.toLowerCase() &&
+    data.verified && !data.enteredGame
+  );
+
+  if (!entry) {
+    console.log(`⚠️ ไม่พบการ verify สำหรับ ${robloxUsername}`);
+    return res.status(404).json({ error: 'No matching verification found' });
+  }
+
+  const [discordUserId, data] = entry;
+  data.enteredGame = true;
+
+  try {
+    await logToGoogleSheet(discordUserId, robloxUsername);
+    console.log(`✅ Logged ${robloxUsername} for Discord ID ${discordUserId}`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('❌ Google Sheets error:', error);
+    res.status(500).json({ error: 'Failed to log to sheet' });
+  }
+});
+
+app.use((req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log('🌐 Express server is running');
+});
+
+async function logToGoogleSheet(discordUserId, robloxUsername) {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       project_id: process.env.GOOGLE_PROJECT_ID,
@@ -46,36 +92,17 @@ async function logToGoogleSheet(username, userId) {
   });
 
   const sheets = google.sheets({ version: 'v4', auth: await auth.getClient() });
+  const timestamp = new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' });
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: process.env.SPREADSHEET_ID,
     range: 'VerifyData!A1',
     valueInputOption: 'RAW',
     requestBody: {
-      values: [[username, userId, new Date().toLocaleString('th-TH', { timeZone: 'Asia/Bangkok' })]]
+      values: [[timestamp, discordUserId, robloxUsername, 'Verified']]
     }
   });
 }
-
-
-app.post('/verify', (req, res) => {
-  const { username, userId } = req.body;
-  if (!username || !userId) {
-    return res.status(400).json({ success: false, message: 'Missing username or userId' });
-  }
-
-  // 🔐 ตรงนี้สามารถเชื่อมกับ Google Sheets หรือระบบยืนยันได้
-  console.log(`✅ Verification received: ${username} (${userId})`);
-  res.json({ success: true, message: 'Verified!' });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
-app.listen(process.env.PORT || 3000, () => {
-  console.log('🌐 Express server is running');
-});
 
 //
 // ⚙️ โหลดคำสั่งและ events
@@ -123,7 +150,15 @@ async function registerAllCommands() {
 
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON()
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON(),
+    new SlashCommandBuilder()
+      .setName('verify')
+      .setDescription('ยืนยันตัวตนของคุณผ่านระบบ')
+      .addStringOption(option =>
+        option.setName('roblox_username')
+          .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
+          .setRequired(true))
+      .toJSON()
   );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -185,6 +220,16 @@ client.on('interactionCreate', async interaction => {
     customOverride = 'closed';
     await updateVoiceChannelStatus();
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
+  }
+
+  if (interaction.commandName === 'verify') {
+    const robloxUsername = interaction.options.getString('roblox_username');
+    verifyStatus.set(interaction.user.id, {
+      robloxUsername,
+      verified: true,
+      enteredGame: false
+    });
+    return interaction.reply({ content: `✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`, ephemeral: true });
   }
 
   if (!command) return;
