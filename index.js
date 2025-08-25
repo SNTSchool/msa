@@ -7,6 +7,7 @@ const { google } = require('googleapis');
 const { Client, GatewayIntentBits, Collection, ActivityType, REST, Routes, SlashCommandBuilder } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
+const fetch = require('node-fetch');
 
 const app = express();
 const client = new Client({
@@ -75,9 +76,29 @@ app.listen(process.env.PORT || 3000, () => {
   console.log('🚀 Express server running');
 });
 
-//
-// 📋 log ลง Google Sheets (รวม logic update/append)
-//
+async function getRobloxUserId(username) {
+  try {
+    const res = await fetch("https://users.roblox.com/v1/usernames/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        usernames: [username],
+        excludeBannedUsers: true
+      })
+    });
+    const data = await res.json();
+    if (data && data.data && data.data.length > 0) {
+      return data.data[0].id.toString();
+    }
+    return '';
+  } catch (err) {
+    console.error("❌ Roblox API error:", err);
+    return '';
+  }
+}
+
+
+
 async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Verified') {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -95,7 +116,7 @@ async function logToGoogleSheet(discordUserId, robloxUsername, viaMethod = 'Veri
   const discordUsername = discordUser ? discordUser.tag : 'Unknown';
 
   // TODO: ถ้ามีระบบดึง Roblox UserID จาก API จะมาแทนตรงนี้
-  const robloxUserId = '';
+ const robloxUserId = await getRobloxUserId(robloxUsername);
 
   const sheetRange = 'VerifyData!A2:G';
   const res = await sheets.spreadsheets.values.get({
