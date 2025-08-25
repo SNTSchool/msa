@@ -11,7 +11,7 @@ module.exports = {
         .setRequired(true)),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true });
+   // await interaction.deferReply({ ephemeral: true });
 
     const discordUserId = interaction.user.id;
     const robloxUsername = interaction.options.getString('roblox_username');
@@ -22,6 +22,6 @@ module.exports = {
       enteredGame: false
     });
 
-    await interaction.editReply(`✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`);
+   // await interaction.editReply(`✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`);
   }
 };
