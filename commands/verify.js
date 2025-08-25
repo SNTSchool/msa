@@ -1,45 +1,27 @@
 const { SlashCommandBuilder } = require('discord.js');
-const fetch = require('node-fetch');
+const verifyStatus = require('../verifyStatus'); // ใช้ shared map
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('verify')
-    .setDescription('ยืนยันตัวตนของคุณ'),
+    .setDescription('ยืนยันตัวตนของคุณผ่านระบบ')
+    .addStringOption(option =>
+      option.setName('roblox_username')
+        .setDescription('ชื่อผู้ใช้ Roblox ของคุณ')
+        .setRequired(true)),
 
   async execute(interaction) {
-    await interaction.deferReply({ ephemeral: true }); // ป้องกัน timeout และแสดงเฉพาะผู้ใช้
+    await interaction.deferReply({ ephemeral: true });
 
-    const userId = interaction.user.id;
-    const username = interaction.user.username;
+    const discordUserId = interaction.user.id;
+    const robloxUsername = interaction.options.getString('roblox_username');
 
-    try {
-      const response = await fetch(`https://msa-ebw0.onrender.com/verify`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, username })
-      });
+    verifyStatus.set(discordUserId, {
+      robloxUsername,
+      verified: true,
+      enteredGame: false
+    });
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-
-      if (result.success) {
-        await interaction.editReply({
-          content: `✅ ยืนยันสำเร็จสำหรับ <@${userId}> (${username})`
-        });
-      } else {
-        await interaction.editReply({
-          content: `⚠️ ไม่สามารถยืนยันได้: ${result.message || 'ไม่ทราบสาเหตุ'}`
-        });
-      }
-
-    } catch (error) {
-      console.error('Verify error:', error);
-      await interaction.editReply({
-        content: `❌ เกิดข้อผิดพลาดในการยืนยัน: ${error.message}`
-      });
-    }
+    await interaction.editReply(`✅ ยืนยัน Roblox username: **${robloxUsername}** แล้ว! กรุณาเข้าเกมเพื่อยืนยันขั้นสุดท้าย`);
   }
 };
