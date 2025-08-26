@@ -294,7 +294,7 @@ const row = new ActionRowBuilder().addComponents(
     .setStyle(ButtonStyle.Primary),
 
   new ButtonBuilder()
-    .setCustomId("verify_oauth") // จะเก็บ Discord ID ใน state
+    
     .setLabel("🔗 Verify via Roblox OAuth")
     .setStyle(ButtonStyle.Link)
     .setURL(generateOAuthUrl(client.user.id)) // ฟังก์ชันสร้าง URL
