@@ -35,6 +35,88 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.json({ status: 'Bot is running' }));
 
+
+
+
+
+
+
+
+//
+// 🔑 Roblox OAuth2 PKCE
+//
+const crypto = require("crypto");
+
+function base64url(input) {
+  return input.toString("base64").replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function genPkce() {
+  const verifier = base64url(crypto.randomBytes(32));
+  const challenge = base64url(crypto.createHash("sha256").update(verifier).digest());
+  return { verifier, challenge };
+}
+
+let pkceStore = {}; // เก็บ verifier ชั่วคราว (จริงๆ ควรเก็บใน redis/db)
+
+// 🔗 เริ่ม login
+app.get("/login", (req, res) => {
+  const { verifier, challenge } = genPkce();
+  const state = base64url(crypto.randomBytes(24));
+
+  pkceStore[state] = verifier;
+
+  const authorizeUrl = new URL("https://apis.roblox.com/oauth/v1/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", process.env.ROBLOX_CLIENT_ID);
+  authorizeUrl.searchParams.set("redirect_uri", process.env.ROBLOX_REDIRECT_URI);
+  authorizeUrl.searchParams.set("scope", "openid profile");
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("code_challenge", challenge);
+  authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+  res.redirect(authorizeUrl.toString());
+});
+
+// 🔗 callback ที่ Roblox เรียกกลับมา
+app.get("/callback", async (req, res) => {
+  const { code, state } = req.query;
+  if (!code || !state) return res.status(400).send("Missing code/state");
+
+  const verifier = pkceStore[state];
+  if (!verifier) return res.status(400).send("Invalid state");
+
+  const body = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: process.env.ROBLOX_CLIENT_ID,
+    client_secret: process.env.ROBLOX_CLIENT_SECRET,
+    redirect_uri: process.env.ROBLOX_REDIRECT_URI,
+    code: String(code),
+    code_verifier: verifier
+  });
+
+  try {
+    const tokenResp = await fetch("https://apis.roblox.com/oauth/v1/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body
+    });
+
+    const tokens = await tokenResp.json();
+    res.send(`<h1>✅ Roblox OAuth Success</h1><pre>${JSON.stringify(tokens, null, 2)}</pre>`);
+  } catch (err) {
+    console.error("❌ Roblox OAuth error:", err);
+    res.status(500).send("OAuth failed");
+  }
+});
+
+
+
+
+
+
+
+
 // รองรับ GET /roblox-entry (กัน error 404)
 app.get('/roblox-entry', (req, res) => {
   res.json({ message: "Use POST with { robloxUsername }" });
