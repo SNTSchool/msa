@@ -275,23 +275,47 @@ client.once('ready', async () => {
   await registerAllCommands();
   scheduleShopStatus();
 
-  // ส่ง embed + ปุ่มเลือก verify
   const channel = await client.channels.fetch('1409549096385122436');
-  const embed = new EmbedBuilder()
-    .setTitle("🔐 เชื่อมบัญชี Roblox")
-    .setDescription("เลือกวิธีการเชื่อมบัญชี Roblox และ Discord ของคุณ")
-    .setColor(0x76c255);
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId("verify_game")
-      .setLabel("🎮 Verify via Game Entry")
-      .setStyle(ButtonStyle.Success),
-    new ButtonBuilder()
-      .setCustomId("verify_description")
-      .setLabel("📝 Verify via Profile Description")
-      .setStyle(ButtonStyle.Primary)
-  );
+const embed = new EmbedBuilder()
+  .setTitle("🔐 เชื่อมบัญชี Roblox")
+  .setDescription("เลือกวิธีการเชื่อมบัญชี Roblox และ Discord ของคุณ")
+  .setColor(0x76c255);
+
+const row = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId("verify_game")
+    .setLabel("🎮 Verify via Game Entry")
+    .setStyle(ButtonStyle.Success),
+
+  new ButtonBuilder()
+    .setCustomId("verify_description")
+    .setLabel("📝 Verify via Profile Description")
+    .setStyle(ButtonStyle.Primary),
+
+  new ButtonBuilder()
+    .setCustomId("verify_oauth") // จะเก็บ Discord ID ใน state
+    .setLabel("🔗 Verify via Roblox OAuth")
+    .setStyle(ButtonStyle.Link)
+    .setURL(generateOAuthUrl(client.user.id)) // ฟังก์ชันสร้าง URL
+);
+
+  function generateOAuthUrl(discordUserId) {
+  const { verifier, challenge } = genPkce();
+  const state = base64url(crypto.randomBytes(24));
+  pkceStore[state] = { verifier, discordUserId }; // เก็บ Discord ID สำหรับ callback
+
+  const authorizeUrl = new URL("https://apis.roblox.com/oauth/v1/authorize");
+  authorizeUrl.searchParams.set("response_type", "code");
+  authorizeUrl.searchParams.set("client_id", process.env.ROBLOX_CLIENT_ID);
+  authorizeUrl.searchParams.set("redirect_uri", process.env.ROBLOX_REDIRECT_URI);
+  authorizeUrl.searchParams.set("scope", "openid profile");
+  authorizeUrl.searchParams.set("state", state);
+  authorizeUrl.searchParams.set("code_challenge", challenge);
+  authorizeUrl.searchParams.set("code_challenge_method", "S256");
+
+  return authorizeUrl.toString();
+  }
 
   await channel.send({ embeds: [embed], components: [row] });
 });
