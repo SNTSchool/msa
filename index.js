@@ -176,6 +176,17 @@ async function getRobloxUserId(username) {
   }
 }
 
+async function getRobloxDescription(userId) {
+  try {
+    const res = await fetch(`https://users.roblox.com/v1/users/${userId}`);
+    const data = await res.json();
+    return data.description || "";
+  } catch (err) {
+    console.error("❌ Roblox description fetch error:", err);
+    return "";
+  }
+}
+
 //
 // 📊 Log ไป Google Sheets
 //
