@@ -6,7 +6,8 @@ const moment = require('moment-timezone');
 const { google } = require('googleapis');
 const { 
   Client, GatewayIntentBits, Collection, ActivityType, REST, Routes, SlashCommandBuilder,
-  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle
+  EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
+  ModalBuilder, TextInputBuilder, TextInputStyle
 } = require('discord.js');
 const { DisTube } = require('distube');
 const { SpotifyPlugin } = require('@distube/spotify');
@@ -34,14 +35,19 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.json({ status: 'Bot is running' }));
 
+// รองรับ GET /roblox-entry (กัน error 404)
+app.get('/roblox-entry', (req, res) => {
+  res.json({ message: "Use POST with { robloxUsername }" });
+});
+
 // ✅ รับข้อมูลจาก Roblox เมื่อผู้ใช้เข้าเกม
-async function handleRobloxEntry(robloxUsername, res) {
+app.post('/roblox-entry', async (req, res) => {
+  const { robloxUsername } = req.body;
   if (!robloxUsername) return res.status(400).json({ error: 'Missing robloxUsername' });
 
   const normalized = robloxUsername.trim().toLowerCase();
   const entry = [...verifyStatus.entries()].find(([_, data]) =>
     data.robloxUsername?.trim().toLowerCase() === normalized &&
-    data.method === "game" &&
     data.verified && !data.enteredGame
   );
 
@@ -52,16 +58,13 @@ async function handleRobloxEntry(robloxUsername, res) {
 
   try {
     await logToGoogleSheet(discordUserId, robloxUsername, 'Game Entry');
-    console.log(`📋 Logged (Game): ${robloxUsername} for Discord ID ${discordUserId}`);
+    console.log(`📋 Logged: ${robloxUsername} for Discord ID ${discordUserId}`);
     res.json({ success: true });
   } catch (error) {
     console.error('❌ Google Sheets error:', error);
     res.status(500).json({ error: 'Failed to log to sheet' });
   }
-}
-
-app.post('/roblox-entry', (req, res) => handleRobloxEntry(req.body.robloxUsername, res));
-app.get('/roblox-entry', (req, res) => handleRobloxEntry(req.query.robloxUsername, res));
+});
 
 app.listen(process.env.PORT || 10000, () => {
   console.log('🚀 Express server running');
@@ -88,17 +91,6 @@ async function getRobloxUserId(username) {
   } catch (err) {
     console.error("❌ Roblox API error:", err);
     return '';
-  }
-}
-
-async function getRobloxDescription(userId) {
-  try {
-    const res = await fetch(`https://users.roblox.com/v1/users/${userId}`);
-    const data = await res.json();
-    return data.description || "";
-  } catch (err) {
-    console.error("❌ Roblox description fetch error:", err);
-    return "";
   }
 }
 
@@ -233,11 +225,7 @@ async function registerAllCommands() {
 
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder().setName('checkdesc')
-      .setDescription('ตรวจสอบการ Verify แบบ Description')
-      .addStringOption(opt => opt.setName('roblox_username').setDescription('Roblox Username').setRequired(true))
-      .toJSON()
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON()
   );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -296,32 +284,73 @@ function scheduleShopStatus() {
 //
 client.on('interactionCreate', async interaction => {
   if (interaction.isButton()) {
+    if (interaction.customId === "verify_game") {
+      // modal สำหรับ game
+      const modal = new ModalBuilder()
+        .setCustomId("verify_game_modal")
+        .setTitle("🎮 Verify via Game Entry");
+
+      const input = new TextInputBuilder()
+        .setCustomId("roblox_username")
+        .setLabel("Enter your Roblox Username")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      return interaction.showModal(modal);
+    }
+
+    if (interaction.customId === "verify_description") {
+      // modal สำหรับ description
+      const modal = new ModalBuilder()
+        .setCustomId("verify_description_modal")
+        .setTitle("📝 Verify via Profile Description");
+
+      const input = new TextInputBuilder()
+        .setCustomId("roblox_username_desc")
+        .setLabel("Enter your Roblox Username")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true);
+
+      modal.addComponents(new ActionRowBuilder().addComponents(input));
+      return interaction.showModal(modal);
+    }
+  }
+
+  // handle modal submit
+  if (interaction.isModalSubmit()) {
     const discordUserId = interaction.user.id;
 
-    if (interaction.customId === "verify_game") {
+    if (interaction.customId === "verify_game_modal") {
+      const robloxUsername = interaction.fields.getTextInputValue("roblox_username");
+
       verifyStatus.set(discordUserId, {
         method: "game",
+        robloxUsername,
         verified: true,
         enteredGame: false
       });
 
       return interaction.reply({
-        content: `🎮 คุณเลือกวิธี **Verify ด้วยการเข้าเกม**\nกรุณาเข้าเกม Roblox เพื่อตรวจสอบขั้นสุดท้าย!`,
+        content: `🎮 คุณเลือก Verify via Game Entry ด้วยชื่อ **${robloxUsername}**\nกรุณาเข้าเกม Roblox เพื่อยืนยัน!`,
         ephemeral: true
       });
     }
 
-    if (interaction.customId === "verify_description") {
+    if (interaction.customId === "verify_description_modal") {
+      const robloxUsername = interaction.fields.getTextInputValue("roblox_username_desc");
       const phrase = generateVerificationPhrase();
+
       verifyStatus.set(discordUserId, {
         method: "description",
+        robloxUsername,
         phrase,
         verified: true,
         enteredGame: false
       });
 
       return interaction.reply({
-        content: `📝 คุณเลือกวิธี **Verify ด้วย Profile Description**\nกรุณาแก้ Roblox **Profile Description** ของคุณเป็น:\n\`\`\`${phrase}\`\`\`\nแล้วใช้คำสั่ง /checkdesc เพื่อตรวจสอบอีกครั้ง`,
+        content: `📝 คุณเลือก Verify via Profile Description ด้วยชื่อ **${robloxUsername}**\nกรุณาแก้ Roblox **Profile Description** ของคุณเป็น:\n\`\`\`${phrase}\`\`\`\nแล้วให้ระบบตรวจสอบอีกครั้ง`,
         ephemeral: true
       });
     }
@@ -342,29 +371,6 @@ client.on('interactionCreate', async interaction => {
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
   }
 
-  if (interaction.commandName === 'checkdesc') {
-    const robloxUsername = interaction.options.getString('roblox_username');
-    const discordUserId = interaction.user.id;
-    const entry = verifyStatus.get(discordUserId);
-
-    if (!entry || entry.method !== "description") {
-      return interaction.reply({ content: "❌ คุณยังไม่ได้เลือกวิธี Verify แบบ Description", ephemeral: true });
-    }
-
-    const robloxUserId = await getRobloxUserId(robloxUsername);
-    if (!robloxUserId) {
-      return interaction.reply({ content: "❌ ไม่พบ Roblox Username นี้", ephemeral: true });
-    }
-
-    const description = await getRobloxDescription(robloxUserId);
-    if (description.includes(entry.phrase)) {
-      await logToGoogleSheet(discordUserId, robloxUsername, "Description Verified");
-      return interaction.reply({ content: `✅ ตรวจสอบแล้ว! คุณได้ Verify Roblox Username **${robloxUsername}** สำเร็จ`, ephemeral: true });
-    } else {
-      return interaction.reply({ content: "❌ Description ของคุณยังไม่ตรงกับ phrase ที่กำหนด", ephemeral: true });
-    }
-  }
-
   if (!command) return;
   try {
     await command.execute(interaction, client);
@@ -375,4 +381,4 @@ client.on('interactionCreate', async interaction => {
 });
 
 client.login(process.env.TOKEN);
-  
+    
