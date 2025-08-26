@@ -331,7 +331,11 @@ async function registerAllCommands() {
 
   commands.push(
     new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้านแบบ override').toJSON(),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON()
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้านแบบ override').toJSON(),
+     new SlashCommandBuilder().setName('checkdesc')
+      .setDescription('ตรวจสอบการ Verify แบบ Description')
+      .addStringOption(opt => opt.setName('roblox_username').setDescription('Roblox Username').setRequired(true))
+      .toJSON()
   );
 
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
@@ -475,6 +479,29 @@ client.on('interactionCreate', async interaction => {
     customOverride = 'closed';
     await updateVoiceChannelStatus();
     return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override แล้ว', ephemeral: true });
+  }
+
+  if (interaction.commandName === 'checkdesc') {
+    const robloxUsername = interaction.options.getString('roblox_username');
+    const discordUserId = interaction.user.id;
+    const entry = verifyStatus.get(discordUserId);
+
+    if (!entry || entry.method !== "description") {
+      return interaction.reply({ content: "❌ คุณยังไม่ได้เลือกวิธี Verify แบบ Description", ephemeral: true });
+    }
+
+    const robloxUserId = await getRobloxUserId(robloxUsername);
+    if (!robloxUserId) {
+      return interaction.reply({ content: "❌ ไม่พบ Roblox Username นี้", ephemeral: true });
+    }
+
+    const description = await getRobloxDescription(robloxUserId);
+    if (description.includes(entry.phrase)) {
+      await logToGoogleSheet(discordUserId, robloxUsername, "Description Verified");
+      return interaction.reply({ content: `✅ ตรวจสอบแล้ว! คุณได้ Verify Roblox Username **${robloxUsername}** สำเร็จ`, ephemeral: true });
+    } else {
+      return interaction.reply({ content: "❌ Description ของคุณยังไม่ตรงกับ phrase ที่กำหนด", ephemeral: true });
+    }
   }
 
   if (!command) return;
