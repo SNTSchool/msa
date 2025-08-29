@@ -404,9 +404,9 @@ client.once('ready', async () => {
       }
     } catch (err) { console.error('send panel error', err); }
   }
-
- cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
-    */
+*/
+// cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
+    
 });
 
 
