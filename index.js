@@ -370,8 +370,8 @@ client.once('ready', async () => {
   try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); }
   catch (err) { console.error('register commands error', err); }
 
-  if (VERIFY_PANEL_CHANNEL_ID) {
-    try {
+ /* if (VERIFY_PANEL_CHANNEL_ID) { 
+    try { 
       const ch = await client.channels.fetch(VERIFY_PANEL_CHANNEL_ID);
       if (ch) {
         const embed = new EmbedBuilder()
@@ -389,6 +389,7 @@ client.once('ready', async () => {
     } catch (err) { console.error('send verify panel error', err); }
   }
 
+ 
   if (PANEL_CHANNEL_ID) {
     try {
       const ch = await client.channels.fetch(PANEL_CHANNEL_ID);
@@ -404,8 +405,11 @@ client.once('ready', async () => {
     } catch (err) { console.error('send panel error', err); }
   }
 
-  cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
+ cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
+    */
 });
+
+
 
 let customOverride = null;
 function getScheduledStatus() {
