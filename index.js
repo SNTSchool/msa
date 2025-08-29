@@ -608,7 +608,10 @@ client.on('interactionCreate', async interaction => {
       if (interaction.customId === 'verify_game_modal') {
         const robloxUsername = interaction.fields.getTextInputValue('vg_username');
         verifyStatus.set(interaction.user.id, { method: 'game', robloxUsername, verified: true, enteredGame: false });
-        await interaction.reply({ content: `🎮 ยืนยันชื่อ Roblox: **${robloxUsername}** โปรดเข้าเกมเพื่อยืนยันขั้นสุดท้าย.`, ephemeral: true });
+        await interaction.reply({ content: 
+        `🎮 ยืนยันชื่อ Roblox: **${robloxUsername}** โปรด [เข้าเกม](https://www.roblox.com/games/111377180902550/MSA-Verify-Center) เพื่อยืนยันขั้นสุดท้าย
+        https://www.roblox.com/games/111377180902550/MSA-Verify-Center .`, 
+        ephemeral: true });
         return;
       }
       if (interaction.customId === 'verify_desc_modal') {
