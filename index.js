@@ -117,7 +117,7 @@ async function appendTranscriptRow(ticketId, discordUser, discordUserId, type) {
 const { STAFF_ROLE_IDS } = require('./config/roles.js');
 
 function isStaff(member) {
-  return member.roles.cache.some(role => staffRoles.includes(role.id));
+  return member.roles.cache.some(role => STAFF_ROLE_IDS.includes(role.id));
 }
 
 
@@ -312,7 +312,7 @@ async function createTicketChannelFor(interactionOrGuild, type = 'qna', opts = {
     { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
   ];
   if (ownerId) overwrites.push({ id: ownerId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles] });
-  staffRoles.forEach(roleId => {
+  STAFF_ROLE_IDS.forEach(roleId => {
     overwrites.push({
       id: roleId,
       allow: [
