@@ -4,7 +4,8 @@ const express = require('express');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { google } = require('googleapis');
-const fetch = require('node-fetch');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
 const crypto = require('crypto');
 
 const {
