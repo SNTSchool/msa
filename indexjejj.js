@@ -1,4 +1,4 @@
-require('dotenv').config();
+/* require('dotenv').config();
 const fs = require('fs');
 const express = require('express');
 const cron = require('node-cron');
@@ -370,7 +370,7 @@ client.once('ready', async () => {
   try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); }
   catch (err) { console.error('register commands error', err); }
 
- /* if (VERIFY_PANEL_CHANNEL_ID) { 
+  if (VERIFY_PANEL_CHANNEL_ID) { 
     try { 
       const ch = await client.channels.fetch(VERIFY_PANEL_CHANNEL_ID);
       if (ch) {
@@ -404,11 +404,11 @@ client.once('ready', async () => {
       }
     } catch (err) { console.error('send panel error', err); }
   }
-*/
+
 // cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
     
 });
-
+/*
 
 
 let customOverride = null;
@@ -710,6 +710,7 @@ try {
     const command = require(`./commands/${file}`);
     if ('data' in command && 'execute' in command) client.commands.set(command.data.name, command);
   }
-} catch (err) { /* ignore if no folder */ }
+//} catch (err) { /* ignore if no folder */ }
 
-client.login(process.env.TOKEN).then(()=> console.log('Discord client logged in')).catch(err => console.error('login error', err));
+//client.login(process.env.TOKEN).then(()=> console.log('Discord client logged in')).catch(err => console.error('login error', err));
+*/
