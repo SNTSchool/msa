@@ -4,8 +4,7 @@ const express = require('express');
 const cron = require('node-cron');
 const moment = require('moment-timezone');
 const { google } = require('googleapis');
-const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
-
+const fetch = require('node-fetch'); // หากใช้ node-fetch v3 อาจต้องเปลี่ยนเป็น dynamic import หรือใช้ global fetch ใน Node 18+
 const crypto = require('crypto');
 
 const {
@@ -30,13 +29,14 @@ const {
 const app = express();
 app.use(express.json());
 
-
+/* ----------------- Discord client & globals ----------------- */
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildVoiceStates,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers
   ]
 });
 
@@ -44,21 +44,22 @@ client.commands = new Collection();
 
 const VOICE_CHANNEL_ID = '1407734133962309663';
 const VERIFY_PANEL_CHANNEL_ID = '1409549096385122436';
-const PANEL_CHANNEL_ID = '1407732551409209460'; 
+const PANEL_CHANNEL_ID = '1407732551409209460';
 const TICKET_CATEGORY_ID = '1407732550969069666';
 const TICKET_LOG_CHANNEL = '1407732551602409604';
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || ''; 
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '';
 const SHEET_NAME_TRANSCRIPT = 'Transcript';
 const SHEET_NAME_VERIFY = 'VerifyData';
 const BASE_URL = process.env.BASE_URL || '';
 
 const CLAIM_COOLDOWN_MS = 10 * 60 * 1000;
-const verifyStatus = new Map(); 
-const pkceStore = {}; 
-const orderTypeStore = new Map(); 
-const ticketStore = new Map(); 
-const lastClaimAt = new Map(); 
+const verifyStatus = new Map();
+const pkceStore = {}; // state -> { verifier, createdAt, optional discordId }
+const orderTypeStore = new Map();
+const ticketStore = new Map();
+const lastClaimAt = new Map();
 
+/* ----------------- Google Sheets helper (using service account envs) ----------------- */
 async function getSheetsClient() {
   const auth = new google.auth.GoogleAuth({
     credentials: {
@@ -97,11 +98,11 @@ async function appendTranscriptRow(ticketId, discordUser, discordUserId, type) {
       discordUser,
       discordUserId,
       'Open',
-      'N/A',    
-      '',    
-      '',    
-      '',    
-      '',    
+      'N/A',
+      '',
+      '',
+      '',
+      '',
       timestamp
     ];
     await sheets.spreadsheets.values.append({
@@ -115,79 +116,15 @@ async function appendTranscriptRow(ticketId, discordUser, discordUserId, type) {
   }
 }
 
-const { STAFF_ROLE_IDS } = require('./config/roles.js');
-
-function isStaff(member) {
-  return member.roles.cache.some(role => STAFF_ROLE_IDS.includes(role.id));
-}
-
-
-async function findTranscriptRowIndex(ticketId) {
-  try {
-    const sheets = await getSheetsClient();
-    const range = `${SHEET_NAME_TRANSCRIPT}!A2:A`;
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
-    const rows = res.data.values || [];
-    for (let i = 0; i < rows.length; i++) {
-      if (rows[i][0] === String(ticketId)) return i + 2; 
-    }
-    return -1;
-  } catch (err) {
-    console.error('findTranscriptRowIndex error', err);
-    return -1;
-  }
-}
-
-async function updateTranscriptRow(sheetRowIndex, rowValues) {
-  try {
-    const sheets = await getSheetsClient();
-    const endCol = 'J'; 
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: SPREADSHEET_ID,
-      range: `${SHEET_NAME_TRANSCRIPT}!A${sheetRowIndex}:${endCol}${sheetRowIndex}`,
-      valueInputOption: 'RAW',
-      requestBody: { values: [rowValues] }
-    });
-  } catch (err) {
-    console.error('updateTranscriptRow error', err);
-  }
-}
-
-async function updateTranscriptByTicketId(ticketId, updates = {}) {
-  try {
-    const sheets = await getSheetsClient();
-    const range = `${SHEET_NAME_TRANSCRIPT}!A2:J`;
-    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
-    const rows = res.data.values || [];
-    const idx = rows.findIndex(r => r[0] === String(ticketId));
-    if (idx === -1) return;
-    const sheetRowIndex = idx + 2;
-    const row = rows[idx];
-    while (row.length < 10) row.push('');
-    if (updates.status !== undefined) row[3] = updates.status;
-    if (updates.claimedByName !== undefined) {
-  row[4] = updates.claimedByName && updates.claimedByName.trim() !== "" 
-    ? updates.claimedByName 
-    : "N/A";
-};
-    if (updates.transcript !== undefined) row[5] = updates.transcript;
-    if (updates.satisfaction !== undefined) row[6] = updates.satisfaction;
-    if (updates.comment !== undefined) row[7] = updates.comment;
-    if (updates.closeReason !== undefined) row[8] = updates.closeReason;
-    await updateTranscriptRow(sheetRowIndex, row);
-  } catch (err) {
-    console.error('updateTranscriptByTicketId error', err);
-  }
-}
-
+/* Append verification row to VerifyData sheet */
 async function appendVerifyRow(discordUserId, robloxUsername, viaMethod = 'Verified') {
   try {
     const sheets = await getSheetsClient();
     const timestamp = moment().tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss');
-    const discordUser = await client.users.fetch(discordUserId).catch(() => null);
-    const discordUsername = discordUser ? discordUser.tag : 'Unknown';
+    const discordUser = discordUserId ? await client.users.fetch(discordUserId).catch(() => null) : null;
+    const discordUsername = discordUser ? discordUser.tag : (discordUserId || 'WEB-OAUTH');
     const robloxUserId = await getRobloxUserId(robloxUsername);
-    const row = [timestamp, discordUsername, discordUserId, robloxUsername, robloxUserId, 'Verified', viaMethod];
+    const row = [timestamp, discordUsername, discordUserId || '', robloxUsername, robloxUserId, 'Verified', viaMethod];
     await sheets.spreadsheets.values.append({
       spreadsheetId: SPREADSHEET_ID,
       range: `${SHEET_NAME_VERIFY}!A1`,
@@ -215,8 +152,9 @@ async function getRobloxUserId(username) {
   }
 }
 
-function base64url(input) {
-  return input.toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+/* ----------------- PKCE helpers ----------------- */
+function base64url(buf) {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 function genPkce() {
   const verifier = base64url(crypto.randomBytes(64));
@@ -224,10 +162,18 @@ function genPkce() {
   return { verifier, challenge };
 }
 
+/* ----------------- Express OAuth endpoints ----------------- */
+
+/**
+ * GET /login
+ * Render a page with a button. When clicked, starts Roblox OAuth authorize flow (with PKCE & state).
+ * Optionally accept ?discordId=xxx to tie flow to a Discord user.
+ */
 app.get('/login', (req, res) => {
   const { verifier, challenge } = genPkce();
   const state = base64url(crypto.randomBytes(24));
-  pkceStore[state] = { verifier };
+  // store verifier and optional discordId (if provided)
+  pkceStore[state] = { verifier, createdAt: Date.now(), discordId: req.query.discordId || null };
   const authorizeUrl = new URL('https://apis.roblox.com/oauth/v1/authorize');
   authorizeUrl.searchParams.set('response_type', 'code');
   authorizeUrl.searchParams.set('client_id', process.env.ROBLOX_CLIENT_ID);
@@ -236,18 +182,31 @@ app.get('/login', (req, res) => {
   authorizeUrl.searchParams.set('state', state);
   authorizeUrl.searchParams.set('code_challenge', challenge);
   authorizeUrl.searchParams.set('code_challenge_method', 'S256');
-    // Render a simple login page with a button to start Roblox OAuth
-  const authUrlStr = authorizeUrl.toString();
-  return res.send(`\n    <html>\n      <head><meta charset="utf-8"><title>Login with Roblox</title></head>\n      <body style="font-family:Arial,sans-serif;padding:20px">\n        <h2>Login with Roblox</h2>\n        <p>Click the button below to sign in via Roblox OAuth.</p>\n        <a href="${authUrlStr}"><button style="font-size:16px;padding:10px 20px">🔗 Login with Roblox</button></a>\n        <p style="margin-top:12px;color:#666">If you came from Discord, pressing this will open Roblox login and then return to the callback URL.</p>\n      </body>\n    </html>\n  `);
 
+  const authUrlStr = authorizeUrl.toString();
+  return res.send(`
+    <!doctype html>
+    <html>
+      <head><meta charset="utf-8"><title>Login with Roblox</title></head>
+      <body style="font-family:Arial,sans-serif;padding:20px">
+        <h2>Login with Roblox</h2>
+        <p>Click the button below to sign in via Roblox OAuth.</p>
+        <a href="${authUrlStr}"><button style="font-size:16px;padding:10px 20px">🔗 Login with Roblox</button></a>
+        <p style="margin-top:12px;color:#666">If you started from Discord, the verify panel will include a link to this page.</p>
+      </body>
+    </html>
+  `);
 });
 
-
+/**
+ * GET /callback
+ * Exchange code for tokens, fetch userinfo, append to Google Sheet, render success page.
+ */
 app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
   if (!code || !state) return res.status(400).send('Missing code/state');
   const store = pkceStore[state];
-  if (!store) return res.status(400).send('Invalid state');
+  if (!store) return res.status(400).send('Invalid or expired state');
   try {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -268,9 +227,10 @@ app.get('/callback', async (req, res) => {
       return res.status(500).send('Token exchange failed');
     }
     const tokens = await tokenResp.json();
+    // remove used state
     delete pkceStore[state];
 
-    // Fetch userinfo using access token
+    // fetch userinfo
     const accessToken = tokens.access_token;
     const userinfoResp = await fetch('https://apis.roblox.com/oauth/v1/userinfo', {
       headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -284,17 +244,17 @@ app.get('/callback', async (req, res) => {
     const robloxId = userinfo.sub || userinfo.id || userinfo.user_id || '';
     const robloxName = userinfo.preferred_username || userinfo.username || userinfo.display_name || '';
 
-    // Append verification to Google Sheet if util available
+    // Append verification to sheet; if a discordId was attached to state, use it
     try {
-      const sheetsUtil = require('./utils/googleSheets');
-      const now = new Date().toISOString();
-      await sheetsUtil.appendVerification('WEB-OAUTH', robloxName, now, process.env.SPREADSHEET_ID);
+      const discordId = store.discordId || '';
+      await appendVerifyRow(discordId, robloxName, 'OAuth');
     } catch (err) {
-      console.warn('Could not append verification to Google Sheet', err);
+      console.warn('Failed to append verify row', err);
     }
 
-    // Render friendly success page
+    // friendly success page
     return res.send(`
+      <!doctype html>
       <html>
         <head><meta charset="utf-8"><title>Verification complete</title></head>
         <body style="font-family:Arial,sans-serif;padding:20px">
@@ -311,20 +271,7 @@ app.get('/callback', async (req, res) => {
   }
 });
 
-    const tokenResp = await fetch('https://apis.roblox.com/oauth/v1/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body
-    });
-    const tokens = await tokenResp.json();
-    delete pkceStore[state];
-    return res.send(`<h1>✅ Roblox OAuth Success</h1><pre>${JSON.stringify(tokens, null, 2)}</pre>`);
-  } catch (err) {
-    console.error('OAuth callback error', err);
-    return res.status(500).send('OAuth failed');
-  }
-});
-
+/* Simple endpoints used by in-game verify flow */
 app.get('/roblox-entry', (req, res) => res.json({ message: '{ robloxUsername }' }));
 
 app.post('/roblox-entry', async (req, res) => {
@@ -346,9 +293,12 @@ app.post('/roblox-entry', async (req, res) => {
   }
 });
 
+/* Health check and listen */
 const PORT = process.env.PORT || 10000;
+app.get('/.well-known/health', (req, res) => res.status(200).send('OK'));
 app.listen(PORT, () => console.log(`Express running on ${PORT}`));
 
+/* ----------------- Ticket utilities & helpers ----------------- */
 async function collectTranscript(channel) {
   try {
     const messages = await channel.messages.fetch({ limit: 100 });
@@ -371,6 +321,7 @@ async function createTicketChannelFor(interactionOrGuild, type = 'qna', opts = {
     { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
   ];
   if (ownerId) overwrites.push({ id: ownerId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles] });
+  const { STAFF_ROLE_IDS } = require('./config/roles.js');
   STAFF_ROLE_IDS.forEach(roleId => {
     overwrites.push({
       id: roleId,
@@ -417,83 +368,10 @@ function findTicketInfoByChannel(channelId) {
   return null;
 }
 
-client.once('ready', async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-  client.user.setActivity('ช่วยงานสุดหล่อ', { type: ActivityType.Streaming, url: 'https://www.twitch.tv/idleaccountdun' });
-
-  const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-  const commands = [
-    new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้าน').toJSON(),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้าน').toJSON()
-  ];
-  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); }
-  catch (err) { console.error('register commands error', err); }
-
-  if (VERIFY_PANEL_CHANNEL_ID) { 
-    try { 
-      const ch = await client.channels.fetch(VERIFY_PANEL_CHANNEL_ID);
-      if (ch) {
-        const embed = new EmbedBuilder()
-          .setTitle('🔑 Roblox Verification')
-          .setDescription('เลือกวิธีการยืนยันบัญชี Roblox ของคุณ')
-          .setColor(0x76c255);
-
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('verify_game_modal_btn').setLabel('🎮 Verify via Game').setStyle(ButtonStyle.Success),
-          new ButtonBuilder().setCustomId('verify_desc_modal_btn').setLabel('📝 Verify via Description').setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setLabel('🔗 Verify via OAuth').setStyle(ButtonStyle.Link).setURL(`${BASE_URL || process.env.ROBLOX_OAUTH_URL || ''}/login`)
-        );
-        await ch.send({ embeds: [embed], components: [row] });
-      }
-    } catch (err) { console.error('send verify panel error', err); }
-  }
-
- 
-  if (PANEL_CHANNEL_ID) {
-    try {
-      const ch = await client.channels.fetch(PANEL_CHANNEL_ID);
-      if (ch) {
-        const embed = new EmbedBuilder().setTitle('🎫 Ticket Panel').setDescription('กดปุ่มเพื่อสร้าง Ticket').setColor(0x5865F2);
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('ticket_btn_order').setLabel('🛒 Order').setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId('ticket_btn_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
-          new ButtonBuilder().setCustomId('ticket_btn_qna').setLabel('❓ Q&A').setStyle(ButtonStyle.Success)
-        );
-        await ch.send({ embeds: [embed], components: [row] });
-      }
-    } catch (err) { console.error('send panel error', err); }
-  }
-
-// cron.schedule('*/5 * * * *', updateVoiceChannelStatus);
-    
-});
-
-
-
-let customOverride = null;
-function getScheduledStatus() {
-  const now = moment().tz('Asia/Bangkok');
-  const day = now.day();
-  const time = now.hour() + now.minute() / 60;
-  if (customOverride) return customOverride;
-  if (day >= 1 && day <= 5) return time >= 17 && time < 21 ? 'open' : 'closed';
-  if (day === 6) return time >= 13 && time < 20 ? 'open' : 'closed';
-  if (day === 0) return time >= 8.5 && time < 20 ? 'open' : 'closed';
-  return 'closed';
-}
-async function updateVoiceChannelStatus() {
-  try {
-    if (!VOICE_CHANNEL_ID) return;
-    const ch = await client.channels.fetch(VOICE_CHANNEL_ID).catch(()=>null);
-    if (!ch) return;
-    const status = getScheduledStatus();
-    const newName = `︰สถานะร้าน-${status === 'open' ? 'เปิด' : 'ปิด'}`;
-    if (ch.name !== newName) await ch.setName(newName);
-  } catch (err) { console.error('updateVoiceChannelStatus', err); }
-}
-
+/* ----------------- Interaction handling ----------------- */
 client.on('interactionCreate', async interaction => {
   try {
+    // chat input commands
     if (interaction.isChatInputCommand()) {
       const name = interaction.commandName;
       if (name === 'setuppanel') {
@@ -523,6 +401,7 @@ client.on('interactionCreate', async interaction => {
       return;
     }
 
+    // Buttons
     if (interaction.isButton()) {
       if (interaction.customId === 'verify_game_modal_btn') {
         const modal = new ModalBuilder().setCustomId('verify_game_modal').setTitle('Verify via Game');
@@ -561,11 +440,13 @@ client.on('interactionCreate', async interaction => {
         return interaction.showModal(modal);
       }
 
+      // ticket claim/unclaim/close handlers
       if (interaction.customId.startsWith('ticket_claim_')) {
         const ticketId = interaction.customId.replace('ticket_claim_', '');
         const info = ticketStore.get(ticketId);
         if (!info) return interaction.reply({ content: 'Ticket not found', ephemeral: true });
-        if (!isStaff(interaction.member)) return interaction.reply({ content: 'ต้องเป็น Staff เท่านั้น', ephemeral: true });
+        const { STAFF_ROLE_IDS } = require('./config/roles.js');
+        if (!interaction.member.roles.cache.some(r => STAFF_ROLE_IDS.includes(r.id))) return interaction.reply({ content: 'ต้องเป็น Staff เท่านั้น', ephemeral: true });
         if (info.status === 'Claimed') return interaction.reply({ content: 'Ticket ถูก claim แล้ว', ephemeral: true });
 
         info.status = 'Claimed';
@@ -588,12 +469,9 @@ client.on('interactionCreate', async interaction => {
           const left = Math.ceil((CLAIM_COOLDOWN_MS - (Date.now() - last)) / 60000);
           return interaction.reply({ content: `ต้องรออีก ${left} นาทีถึงจะ unclaim ได้`, ephemeral: true });
         }
-       if (info.claimedBy && info.claimedBy !== interaction.user.id && !isStaff(interaction.member)) {
-        return interaction.reply({ 
-          content: '❌ Ticket นี้ถูก claim โดยคนอื่นแล้ว', 
-          ephemeral: true 
-        });
-      }
+        if (info.claimedBy && info.claimedBy !== interaction.user.id && !interaction.member.roles.cache.some(r => require('./config/roles.js').STAFF_ROLE_IDS.includes(r.id))) {
+          return interaction.reply({ content: '❌ Ticket นี้ถูก claim โดยคนอื่นแล้ว', ephemeral: true });
+        }
 
         info.status = 'Open';
         info.claimedBy = null;
@@ -606,7 +484,6 @@ client.on('interactionCreate', async interaction => {
         const ticketId = interaction.customId.replace('ticket_close_', '');
         const info = ticketStore.get(ticketId);
         if (!info) return interaction.reply({ content: 'Ticket not found', ephemeral: true });
-        //if (!(STAFF_ROLE_ID && interaction.member.roles.cache.has(STAFF_ROLE_ID))) return interaction.reply({ content: 'ปิดได้เฉพาะ Staff', ephemeral: true });
 
         const row1 = new ActionRowBuilder().addComponents(
           new StringSelectMenuBuilder().setCustomId('close_select_satisfaction').setPlaceholder('คะแนนความพึงพอใจ').addOptions([
@@ -628,6 +505,7 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
+    // String select menus handlers...
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId === 'order_type_select') {
         const val = interaction.values?.[0];
@@ -663,13 +541,14 @@ client.on('interactionCreate', async interaction => {
       }
     }
 
+    // Modal submit handlers...
     if (interaction.isModalSubmit()) {
       if (interaction.customId === 'verify_game_modal') {
         const robloxUsername = interaction.fields.getTextInputValue('vg_username');
         verifyStatus.set(interaction.user.id, { method: 'game', robloxUsername, verified: true, enteredGame: false });
-        await interaction.reply({ content: 
+        await interaction.reply({ content:
         `🎮 ยืนยันชื่อ Roblox: **${robloxUsername}** โปรด [เข้าเกม](https://www.roblox.com/games/111377180902550/MSA-Verify-Center) เพื่อยืนยันขั้นสุดท้าย
-        https://www.roblox.com/games/111377180902550/MSA-Verify-Center .`, 
+https://www.roblox.com/games/111377180902550/MSA-Verify-Center .`,
         ephemeral: true });
         return;
       }
@@ -755,14 +634,13 @@ client.on('interactionCreate', async interaction => {
         return interaction.reply({ content: '✅ Ticket closed and logged', ephemeral: true });
       }
     }
-
   } catch (err) {
     console.error('interaction handler error', err);
     try { if (!interaction.replied) await interaction.reply({ content: 'เกิดข้อผิดพลาด', ephemeral: true }); } catch {}
   }
 });
 
-
+/* ----------------- Load commands & login ----------------- */
 try {
   const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
   for (const file of commandFiles) {
@@ -771,4 +649,55 @@ try {
   }
 } catch (err) { /* ignore if no folder */ }
 
+/* Post panels on ready and register simple guild commands */
+client.once('ready', async () => {
+  console.log(`Logged in as ${client.user.tag}`);
+  client.user.setActivity('ช่วยงานสุดหล่อ', { type: ActivityType.Streaming, url: 'https://www.twitch.tv/idleaccountdun' });
+
+  const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+  const commands = [
+    new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้าน').toJSON(),
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้าน').toJSON()
+  ];
+  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); }
+  catch (err) { console.error('register commands error', err); }
+
+  if (VERIFY_PANEL_CHANNEL_ID) {
+    try {
+      const ch = await client.channels.fetch(VERIFY_PANEL_CHANNEL_ID);
+      if (ch) {
+        const embed = new EmbedBuilder()
+          .setTitle('🔑 Roblox Verification')
+          .setDescription('เลือกวิธีการยืนยันบัญชี Roblox ของคุณ')
+          .setColor(0x76c255);
+
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('verify_game_modal_btn').setLabel('🎮 Verify via Game').setStyle(ButtonStyle.Success),
+          new ButtonBuilder().setCustomId('verify_desc_modal_btn').setLabel('📝 Verify via Description').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setLabel('🔗 Verify via OAuth').setStyle(ButtonStyle.Link).setURL(`${BASE_URL || process.env.ROBLOX_OAUTH_URL || ''}/login`)
+        );
+        await ch.send({ embeds: [embed], components: [row] });
+      }
+    } catch (err) { console.error('send verify panel error', err); }
+  }
+
+  if (PANEL_CHANNEL_ID) {
+    try {
+      const ch = await client.channels.fetch(PANEL_CHANNEL_ID);
+      if (ch) {
+        const embed = new EmbedBuilder().setTitle('🎫 Ticket Panel').setDescription('กดปุ่มเพื่อสร้าง Ticket').setColor(0x5865F2);
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('ticket_btn_order').setLabel('🛒 Order').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('ticket_btn_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
+          new ButtonBuilder().setCustomId('ticket_btn_qna').setLabel('❓ Q&A').setStyle(ButtonStyle.Success)
+        );
+        await ch.send({ embeds: [embed], components: [row] });
+      }
+    } catch (err) { console.error('send panel error', err); }
+  }
+});
+
+/* Login */
 client.login(process.env.TOKEN).then(()=> console.log('Discord client logged in')).catch(err => console.error('login error', err));
+
+/* ----------------- End of file ----------------- */
