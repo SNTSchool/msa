@@ -75,6 +75,115 @@ async function getSheetsClient() {
   return google.sheets({ version: 'v4', auth: clientAuth });
 }
 
+async function getNextTicketId() {
+  try {
+    const sheets = await getSheetsClient();
+    const range = `${SHEET_NAME_TRANSCRIPT}!A:A`;
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+    const rows = res.data.values || [];
+    const hasHeader = rows.length > 0 && rows[0][0] && rows[0][0].toString().toLowerCase().includes('ticket');
+    const count = hasHeader ? rows.length - 1 : rows.length;
+    const next = count + 1;
+    return String(next).padStart(3, '0');
+  } catch (err) {
+    console.error('getNextTicketId error', err);
+    const fallback = moment().tz('Asia/Bangkok').format('YYMMDDHHmmss');
+    return fallback;
+  }
+}
+
+async function appendTranscriptRow(ticketId, discordUser, discordUserId, type) {
+  try {
+    const sheets = await getSheetsClient();
+    const timestamp = moment().tz('Asia/Bangkok').format('DD-MM-YYYY HH:mm:ss');
+    const row = [
+      ticketId,
+      discordUser,
+      discordUserId,
+      'Open',
+      'N/A',    
+      '',    
+      '',    
+      '',    
+      '',    
+      timestamp
+    ];
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME_TRANSCRIPT}!A1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] }
+    });
+  } catch (err) {
+    console.error('appendTranscriptRow error', err);
+  }
+}
+
+const { STAFF_ROLE_IDS } = require('./config/roles.js');
+
+function isStaff(member) {
+  return member.roles.cache.some(role => STAFF_ROLE_IDS.includes(role.id));
+}
+
+
+async function findTranscriptRowIndex(ticketId) {
+  try {
+    const sheets = await getSheetsClient();
+    const range = `${SHEET_NAME_TRANSCRIPT}!A2:A`;
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+    const rows = res.data.values || [];
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i][0] === String(ticketId)) return i + 2; 
+    }
+    return -1;
+  } catch (err) {
+    console.error('findTranscriptRowIndex error', err);
+    return -1;
+  }
+}
+
+async function updateTranscriptRow(sheetRowIndex, rowValues) {
+  try {
+    const sheets = await getSheetsClient();
+    const endCol = 'J'; 
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `${SHEET_NAME_TRANSCRIPT}!A${sheetRowIndex}:${endCol}${sheetRowIndex}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [rowValues] }
+    });
+  } catch (err) {
+    console.error('updateTranscriptRow error', err);
+  }
+}
+
+async function updateTranscriptByTicketId(ticketId, updates = {}) {
+  try {
+    const sheets = await getSheetsClient();
+    const range = `${SHEET_NAME_TRANSCRIPT}!A2:J`;
+    const res = await sheets.spreadsheets.values.get({ spreadsheetId: SPREADSHEET_ID, range });
+    const rows = res.data.values || [];
+    const idx = rows.findIndex(r => r[0] === String(ticketId));
+    if (idx === -1) return;
+    const sheetRowIndex = idx + 2;
+    const row = rows[idx];
+    while (row.length < 10) row.push('');
+    if (updates.status !== undefined) row[3] = updates.status;
+    if (updates.claimedByName !== undefined) {
+  row[4] = updates.claimedByName && updates.claimedByName.trim() !== "" 
+    ? updates.claimedByName 
+    : "N/A";
+};
+    if (updates.transcript !== undefined) row[5] = updates.transcript;
+    if (updates.satisfaction !== undefined) row[6] = updates.satisfaction;
+    if (updates.comment !== undefined) row[7] = updates.comment;
+    if (updates.closeReason !== undefined) row[8] = updates.closeReason;
+    await updateTranscriptRow(sheetRowIndex, row);
+  } catch (err) {
+    console.error('updateTranscriptByTicketId error', err);
+  }
+}
+
 async function appendVerifyRow(discordUserId, robloxUsername, viaMethod='OAuth') {
   try {
     const sheets = await getSheetsClient();
