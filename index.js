@@ -780,5 +780,11 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
+const notFound = require('./pages/404');
+const errorPage = require('./pages/error');
+
+app.use(notFound);
+app.use(errorPage);
+
 /* Start Discord client */
 client.login(process.env.TOKEN).then(()=> console.log('Discord login ok')).catch(e=>console.error('discord login err', e.message || e));
