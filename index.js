@@ -309,7 +309,7 @@ client.once('ready', async () => {
   console.log('Discord ready', client.user.tag);
   loadCommandsAndRegister().catch(e=>console.warn('register fail', e.message || e));
  try {
-    const panelCh = 1407732551409209460;
+    const panelCh = process.env.ORDER_CH_ID;
     if (panelCh) {
       const ch = await client.channels.fetch(panelCh).catch(()=>null);
       if (ch) {
@@ -325,6 +325,7 @@ client.once('ready', async () => {
   } catch (e) { console.warn('send ticket panel failed', e.message || e); }
 
 });
+
 
 
 
