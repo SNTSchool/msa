@@ -770,3 +770,4 @@ client.on('interactionCreate', async interaction => {
 
 /* Start Discord client */
 client.login(process.env.TOKEN).then(()=> console.log('Discord login ok')).catch(e=>console.error('discord login err', e.message || e));
+ 
