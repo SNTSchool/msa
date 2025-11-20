@@ -308,38 +308,192 @@ async function loadCommandsAndRegister() {
 client.once('ready', async () => {
   console.log('Discord ready', client.user.tag);
   loadCommandsAndRegister().catch(e=>console.warn('register fail', e.message || e));
-  (async function sendPanel(){
-    try {
-      const chId = process.env.VERIFY_PANEL_CHANNEL_ID;
-      if (!chId) return;
-      const ch = await client.channels.fetch(chId).catch(()=>null);
-      if (!ch) return;
-      const embed = new EmbedBuilder().setTitle('🔑 Roblox Verification').setDescription('Choose verification method').setColor(0x76c255);
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('verify_game_modal_btn').setLabel('🎮 Verify via Game').setStyle(ButtonStyle.Success),
-        new ButtonBuilder().setCustomId('verify_desc_modal_btn').setLabel('📝 Verify via Description').setStyle(ButtonStyle.Primary),
-        new ButtonBuilder().setCustomId('verify_oauth_request').setLabel('🔗 Get OAuth Link').setStyle(ButtonStyle.Secondary)
-      );
-      await ch.send({ embeds: [embed], components: [row] });
-    } catch (e) { console.warn('sendPanel failed', e.message || e); }
-  })();
+ try {
+    const panelCh = 1407732551409209460;
+    if (panelCh) {
+      const ch = await client.channels.fetch(panelCh).catch(()=>null);
+      if (ch) {
+        const embed = new EmbedBuilder().setTitle('🎫 Ticket Panel').setDescription('กดปุ่มเพื่อสร้าง Ticket').setColor(0x5865F2);
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('ticket_btn_order').setLabel('🛒 Order').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('ticket_btn_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
+          new ButtonBuilder().setCustomId('ticket_btn_qna').setLabel('❓ Q&A').setStyle(ButtonStyle.Success)
+        );
+        await ch.send({ embeds: [embed], components: [row] });
+      }
+    }
+  } catch (e) { console.warn('send ticket panel failed', e.message || e); }
+
 });
+
+
 
 client.on('interactionCreate', async interaction => {
   try {
-    if (interaction.isButton()) {
-      if (interaction.customId === 'verify_oauth_request') {
-        const url = `${BASE_URL}/login?discordId=${encodeURIComponent(interaction.user.id)}`;
-        return interaction.reply({ content: `🔗 ${url}`, ephemeral: true });
+    if (interaction.isChatInputCommand()) {
+      const name = interaction.commandName;
+      if (name === 'setuppanel') {
+        const embed = new EmbedBuilder().setTitle('🎫 Ticket Panel').setDescription('กดปุ่มเพื่อสร้าง Ticket').setColor(0x5865F2);
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('ticket_btn_order').setLabel('🛒 Order').setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId('ticket_btn_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
+          new ButtonBuilder().setCustomId('ticket_btn_qna').setLabel('❓ Q&A').setStyle(ButtonStyle.Success)
+        );
+        await interaction.channel.send({ embeds: [embed], components: [row] });
+        return interaction.reply({ content: '✅ Ticket panel sent to this channel', ephemeral: true });
       }
+      if (name === 'openshop') {
+        customOverride = 'open';
+        await updateVoiceChannelStatus();
+        return interaction.reply({ content: '✅ ร้านถูกเปิดแบบ override', ephemeral: true });
+      }
+      if (name === 'closeshop') {
+        customOverride = 'closed';
+        await updateVoiceChannelStatus();
+        return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override', ephemeral: true });
+      }
+      const cmd = client.commands.get(name);
+      if (cmd) {
+        try { await cmd.execute(interaction, client); } catch (err) { console.error('command execute error', err); interaction.reply({ content: 'Command error', ephemeral: true }); }
+      }
+      return;
+    }
+
+    if (interaction.isButton()) {
+      // verification buttons
       if (interaction.customId === 'verify_game_modal_btn') {
         const modal = new ModalBuilder().setCustomId('verify_game_modal').setTitle('Verify via Game');
-        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('vg_username').setLabel('Roblox username').setStyle(TextInputStyle.Short).setRequired(true)));
+        const input = new TextInputBuilder().setCustomId('vg_username').setLabel('Your Roblox username').setStyle(TextInputStyle.Short).setRequired(true);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
         return interaction.showModal(modal);
       }
       if (interaction.customId === 'verify_desc_modal_btn') {
-        const modal = new ModalBuilder().setCustomId('verify_desc_modal').setTitle('Verify via Description');
-        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('vd_username').setLabel('Roblox username').setStyle(TextInputStyle.Short).setRequired(true)));
+        const modal = new ModalBuilder().setCustomId('verify_desc_modal').setTitle('Verify via Profile Description');
+        const input = new TextInputBuilder().setCustomId('vd_username').setLabel('Your Roblox username').setStyle(TextInputStyle.Short).setRequired(true);
+        modal.addComponents(new ActionRowBuilder().addComponents(input));
+        return interaction.showModal(modal);
+      }
+      // ticket panel
+      if (interaction.customId === 'ticket_btn_order') {
+        const row = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder().setCustomId('order_type_select').setPlaceholder('เลือกประเภทการสั่งซื้อ').addOptions([
+            { label: 'สั่งทำ (Custom Order)', value: 'custom' },
+            { label: 'ซื้อผลิตภัณฑ์ (Buy Product)', value: 'product' }
+          ])
+        );
+        return interaction.reply({ content: 'โปรดเลือกประเภทการสั่งซื้อ', components: [row], ephemeral: true });
+      }
+      if (interaction.customId === 'ticket_btn_report') {
+        const modal = new ModalBuilder().setCustomId('modal_report').setTitle('Report');
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('report_discord').setLabel('Discord name (optional)').setStyle(TextInputStyle.Short).setRequired(false)),
+          new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('report_roblox').setLabel('Roblox name (optional)').setStyle(TextInputStyle.Short).setRequired(false)),
+          new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('report_group').setLabel('Group name (optional)').setStyle(TextInputStyle.Short).setRequired(false))
+        );
+        return interaction.showModal(modal);
+      }
+      if (interaction.customId === 'ticket_btn_qna') {
+        const modal = new ModalBuilder().setCustomId('modal_qna').setTitle('Q&A');
+        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('qna_question').setLabel('Your question').setStyle(TextInputStyle.Paragraph).setRequired(true)));
+        return interaction.showModal(modal);
+      }
+
+      // ticket claim/unclaim/close flows
+      if (interaction.customId.startsWith('ticket_claim_')) {
+        const ticketId = interaction.customId.replace('ticket_claim_', '');
+        const info = ticketStore.get(ticketId);
+        if (!info) return interaction.reply({ content: 'Ticket not found', ephemeral: true });
+        if (!isStaff(interaction.member)) return interaction.reply({ content: 'ต้องเป็น Staff เท่านั้น', ephemeral: true });
+        if (info.status === 'Claimed') return interaction.reply({ content: 'Ticket ถูก claim แล้ว', ephemeral: true });
+
+        info.status = 'Claimed';
+        info.claimedBy = interaction.user.id;
+        ticketStore.set(ticketId, info);
+        lastClaimAt.set(info.channelId, Date.now());
+        const ch = interaction.channel;
+        await ch.setName(`claimed-${info.type}-${ticketId}`).catch(()=>{});
+        await updateTranscriptByTicketId(ticketId, { status: 'Claimed', claimedByName: interaction.user.tag });
+        return interaction.reply({ content: `✅ Claimed by <@${interaction.user.id}>`, ephemeral: false });
+      }
+      if (interaction.customId.startsWith('ticket_unclaim_')) {
+        const ticketId = interaction.customId.replace('ticket_unclaim_', '');
+        const info = ticketStore.get(ticketId);
+        if (!info) return interaction.reply({ content: 'Ticket not found', ephemeral: true });
+        if (info.status !== 'Claimed') return interaction.reply({ content: 'Ticket ยังไม่ได้ถูก claim', ephemeral: true });
+        const chId = info.channelId;
+        const last = lastClaimAt.get(chId) || 0;
+        const CLAIM_COOLDOWN_MS = Number(process.env.CLAIM_COOLDOWN_MS) || (10 * 60 * 1000);
+        if (Date.now() - last < CLAIM_COOLDOWN_MS) {
+          const left = Math.ceil((CLAIM_COOLDOWN_MS - (Date.now() - last)) / 60000);
+          return interaction.reply({ content: `ต้องรออีก ${left} นาทีถึงจะ unclaim ได้`, ephemeral: true });
+        }
+        if (info.claimedBy && info.claimedBy !== interaction.user.id && !isStaff(interaction.member)) {
+          return interaction.reply({ content: '❌ Ticket นี้ถูก claim โดยคนอื่นแล้ว', ephemeral: true });
+        }
+
+        info.status = 'Open';
+        info.claimedBy = null;
+        ticketStore.set(ticketId, info);
+        await interaction.channel.setName(`${info.type}-${ticketId}`).catch(()=>{});
+        await updateTranscriptByTicketId(ticketId, { status: 'Open', claimedByName: '' });
+        return interaction.reply({ content: `🔓 Unclaimed by <@${interaction.user.id}>`, ephemeral: false });
+      }
+      if (interaction.customId.startsWith('ticket_close_')) {
+        const ticketId = interaction.customId.replace('ticket_close_', '');
+        const info = ticketStore.get(ticketId);
+        if (!info) return interaction.reply({ content: 'Ticket not found', ephemeral: true });
+
+        const row1 = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder().setCustomId('close_select_satisfaction').setPlaceholder('คะแนนความพึงพอใจ').addOptions([
+            { label: '1', value: '1' },{ label: '2', value: '2' },{ label: '3', value: '3' },{ label: '4', value: '4' },{ label: '5', value: '5' }
+          ])
+        );
+        const row2 = new ActionRowBuilder().addComponents(
+          new StringSelectMenuBuilder().setCustomId('close_select_reason').setPlaceholder('เหตุผลการปิด').addOptions([
+            { label: 'เสร็จสิ้นงาน/บริการแล้ว', value: 'done' },
+            { label: 'ยกเลิกคำขอ', value: 'cancel' },
+            { label: 'ไม่สามารถดำเนินการได้', value: 'not_possible' },
+            { label: 'อื่นๆ', value: 'other' }
+          ])
+        );
+        lastClaimAt.set(interaction.channelId, lastClaimAt.get(interaction.channelId) || 0);
+        interaction.client._closeFlow = interaction.client._closeFlow || new Map();
+        interaction.client._closeFlow.set(interaction.channelId, { ticketId });
+        return interaction.reply({ content: 'โปรดเลือกคะแนนและเหตุผล (ephemeral)', components: [row1, row2], ephemeral: true });
+      }
+    }
+
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === 'order_type_select') {
+        const val = interaction.values?.[0];
+        if (!val) return interaction.reply({ content: 'กรุณาเลือก', ephemeral: true });
+        orderTypeStore.set(interaction.user.id, val);
+        const modal = new ModalBuilder().setCustomId('order_modal').setTitle('Order');
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('order_product').setLabel('ชื่อสินค้า').setStyle(TextInputStyle.Short).setRequired(true)),
+          new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('order_details').setLabel('รายละเอียด (สำหรับสั่งทำ)').setStyle(TextInputStyle.Paragraph).setRequired(val === 'custom'))
+        );
+        return interaction.showModal(modal);
+      }
+
+      if (interaction.customId === 'close_select_satisfaction') {
+        const val = interaction.values?.[0];
+        const map = interaction.client._closeFlow || new Map();
+        const item = map.get(interaction.channelId) || {};
+        item.satisfaction = val;
+        map.set(interaction.channelId, item);
+        interaction.client._closeFlow = map;
+        return interaction.reply({ content: `เลือกคะแนน: ${val}. ต่อไปเลือกเหตุผล`, ephemeral: true });
+      }
+      if (interaction.customId === 'close_select_reason') {
+        const val = interaction.values?.[0];
+        const map = interaction.client._closeFlow || new Map();
+        const item = map.get(interaction.channelId) || {};
+        item.reason = val;
+        map.set(interaction.channelId, item);
+        interaction.client._closeFlow = map;
+        const modal = new ModalBuilder().setCustomId('close_comment_modal').setTitle('Close - comment (optional)');
+        modal.addComponents(new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('close_comment').setLabel('ความคิดเห็นเพิ่มเติม').setStyle(TextInputStyle.Paragraph).setRequired(false)));
         return interaction.showModal(modal);
       }
     }
@@ -349,25 +503,95 @@ client.on('interactionCreate', async interaction => {
         const robloxUsername = interaction.fields.getTextInputValue('vg_username');
         verifyStatus.set(interaction.user.id, { method:'game', robloxUsername, verified:true, enteredGame:false, createdAt: Date.now() });
         scheduleGameExpiry(interaction.user.id, 10);
-        return interaction.reply({ content: `🎮 Please enter the game within 10 minutes: ${robloxUsername}`, ephemeral: true });
+        await interaction.reply({ content: `🎮 กรุณาเข้าเกมภายใน 10 นาที: ${robloxUsername}\nhttps://www.roblox.com/games/111377180902550/MSA-Verify-Center`, ephemeral: true });
+        return;
       }
       if (interaction.customId === 'verify_desc_modal') {
         const robloxUsername = interaction.fields.getTextInputValue('vd_username');
-        const phrase = (function(){ const s=["I","We","They"]; const v=["enjoy","like","love"]; const o=["apples","coding"]; return `${s[Math.floor(Math.random()*s.length)]} ${v[Math.floor(Math.random()*v.length)]} ${o[Math.floor(Math.random()*o.length)]}.`; })();
+        const phrase = (function generateVerificationPhrase(){
+          const subjects = ["I","We","They","Someone","A friend","My cat"];
+          const verbs = ["enjoy","like","love","prefer","sometimes eat","dream about"];
+          const objects = ["apples","dancing in the rain","purple cats","flying cars","building sandcastles","watching the stars"];
+          const extras = ["every morning","at night","when it rains","on Sundays","while coding"];
+          return `${subjects[Math.floor(Math.random()*subjects.length)]} ${verbs[Math.floor(Math.random()*verbs.length)]} ${objects[Math.floor(Math.random()*objects.length)]} ${extras[Math.floor(Math.random()*extras.length)]}.`;
+        })();
         verifyStatus.set(interaction.user.id, { method:'description', robloxUsername, phrase, verified:true, enteredGame:false, createdAt: Date.now() });
-        return interaction.reply({ content: `📝 Set your Roblox profile description to:\n\`\`\`${phrase}\`\`\` then use /verify-desc`, ephemeral: true });
+        await interaction.reply({ content: `📝 โปรดตั้ง Profile Description ของคุณเป็น:\n\`\`\`${phrase}\`\`\`\nแล้วระบบจะตรวจสอบอีกครั้ง`, ephemeral: true });
+        return;
+      }
+
+      if (interaction.customId === 'order_modal') {
+        const product = interaction.fields.getTextInputValue('order_product');
+        const details = interaction.fields.getTextInputValue('order_details') || '';
+        const type = orderTypeStore.get(interaction.user.id) || 'product';
+        orderTypeStore.delete(interaction.user.id);
+        const initialMessage = `Order type: **${type}**\nProduct: **${product}**\nDetails: ${details}`;
+        const { ch, info } = await createTicketChannelFor(interaction, 'order', { ownerId: interaction.user.id, initialMessage });
+        await interaction.reply({ content: `✅ สร้าง ticket: <#${ch.id}>`, ephemeral: true });
+        return;
+      }
+
+      if (interaction.customId === 'modal_report') {
+        const discordName = interaction.fields.getTextInputValue('report_discord') || '';
+        const robloxName = interaction.fields.getTextInputValue('report_roblox') || '';
+        const groupName = interaction.fields.getTextInputValue('report_group') || '';
+        const initialMessage = `Report\nDiscord: ${discordName}\nRoblox: ${robloxName}\nGroup: ${groupName}`;
+        const { ch, info } = await createTicketChannelFor(interaction, 'report', { ownerId: interaction.user.id, initialMessage });
+        await interaction.reply({ content: `✅ รายงานถูกสร้าง: <#${ch.id}>`, ephemeral: true });
+        return;
+      }
+
+      if (interaction.customId === 'modal_qna') {
+        const question = interaction.fields.getTextInputValue('qna_question');
+        const initialMessage = `Q&A\nQuestion: ${question}`;
+        const { ch, info } = await createTicketChannelFor(interaction, 'qna', { ownerId: interaction.user.id, initialMessage });
+        await interaction.reply({ content: `✅ Ticket Q&A created: <#${ch.id}>`, ephemeral: true });
+        return;
+      }
+
+      if (interaction.customId === 'close_comment_modal') {
+        const comment = interaction.fields.getTextInputValue('close_comment') || '';
+        const flowMap = interaction.client._closeFlow || new Map();
+        const flow = flowMap.get(interaction.channelId);
+        if (!flow) return interaction.reply({ content: 'Flow data missing', ephemeral: true });
+        const { ticketId, satisfaction, reason } = flow;
+        const info = ticketStore.get(ticketId) || findTicketInfoByChannel(interaction.channelId);
+        if (!info) return interaction.reply({ content: 'Ticket not found', ephemeral: true });
+
+        const transcript = await collectTranscript(interaction.channel);
+        await updateTranscriptByTicketId(ticketId, {
+          transcript,
+          satisfaction: satisfaction || '',
+          comment: comment || '',
+          closeReason: reason || '',
+          status: 'Closed'
+        });
+
+        try {
+          await interaction.channel.permissionOverwrites.set([
+            { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] }
+          ]);
+          await interaction.channel.setName(`closed-${info.type}-${ticketId}`).catch(()=>{});
+        } catch (err) { console.error('close channel error', err); }
+
+        if (process.env.TICKET_LOG_CHANNEL) {
+          const logCh = await client.channels.fetch(process.env.TICKET_LOG_CHANNEL).catch(()=>null);
+          if (logCh) {
+            await logCh.send(`📁 Ticket closed: ${ticketId}\nBy: ${interaction.user.tag}\nReason: ${reason}\nSatisfaction: ${satisfaction}\nComment: ${comment}`);
+          }
+        }
+
+        info.status = 'Closed';
+        ticketStore.set(ticketId, info);
+        flowMap.delete(interaction.channelId);
+        interaction.client._closeFlow = flowMap;
+        return interaction.reply({ content: '✅ Ticket closed and logged', ephemeral: true });
       }
     }
 
-    if (interaction.isChatInputCommand()) {
-      const cmd = client.commands.get(interaction.commandName);
-      if (cmd) {
-        try { await cmd.execute(interaction, client); } catch(e){ console.error('cmd exec', e); await interaction.reply({ content: 'Command failed', ephemeral:true }); }
-      }
-    }
   } catch (err) {
-    console.error('interaction error', err);
-    try { if (!interaction.replied) await interaction.reply({ content: 'Error', ephemeral:true }); } catch {}
+    console.error('interaction handler error', err);
+    try { if (!interaction.replied) await interaction.reply({ content: 'เกิดข้อผิดพลาด', ephemeral: true }); } catch {}
   }
 });
 
