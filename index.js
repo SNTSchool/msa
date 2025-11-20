@@ -35,10 +35,18 @@ const app = express();
 app.use(express.json());
 
 /* -------- Config -------- */
+
+const VOICE_CHANNEL_ID = '1407734133962309663';
+const VERIFY_PANEL_CHANNEL_ID = '1409549096385122436';
+const PANEL_CHANNEL_ID = '1407732551409209460'; 
+const TICKET_CATEGORY_ID = '1407732550969069666';
+const TICKET_LOG_CHANNEL = '1407732551602409604';
+const SPREADSHEET_ID = process.env.SPREADSHEET_ID || ''; 
+const SHEET_NAME_TRANSCRIPT = 'Transcript';
+const SHEET_NAME_VERIFY = 'VerifyData';
 const PORT = process.env.PORT || 10000;
 const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/,'');
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '';
-const SHEET_NAME_VERIFY = 'VerifyData';
+
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers]
@@ -770,4 +778,3 @@ client.on('interactionCreate', async interaction => {
 
 /* Start Discord client */
 client.login(process.env.TOKEN).then(()=> console.log('Discord login ok')).catch(e=>console.error('discord login err', e.message || e));
- 
