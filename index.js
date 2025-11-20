@@ -305,25 +305,88 @@ async function loadCommandsAndRegister() {
   } catch (err) { console.error('loadCommandsAndRegister error', err.message || err); }
 }
 
+async function collectTranscript(channel) {
+  try {
+    const messages = await channel.messages.fetch({ limit: 100 });
+    const arr = Array.from(messages.values()).reverse();
+    const text = arr.map(m => `[${moment(m.createdAt).tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm')}] ${m.author.tag}: ${m.content}`).join('\n');
+    return text;
+  } catch (err) {
+    console.error('collectTranscript error', err);
+    return '';
+  }
+}
+
+async function createTicketChannelFor(interactionOrGuild, type = 'qna', opts = {}) {
+  const guild = interactionOrGuild.guild ? interactionOrGuild.guild : interactionOrGuild;
+  const ownerId = opts.ownerId || (interactionOrGuild.user ? interactionOrGuild.user.id : null);
+  const ticketId = await getNextTicketId();
+  const name = `${type}-${ticketId}`;
+
+  const overwrites = [
+    { id: guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+  ];
+  if (ownerId) overwrites.push({ id: ownerId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.AttachFiles] });
+  STAFF_ROLE_IDS.forEach(roleId => {
+    overwrites.push({
+      id: roleId,
+      allow: [
+        PermissionsBitField.Flags.ViewChannel,
+        PermissionsBitField.Flags.SendMessages,
+        PermissionsBitField.Flags.ManageMessages
+      ]
+    });
+  });
+  const ch = await guild.channels.create({
+    name,
+    type: 0,
+    parent: TICKET_CATEGORY_ID || undefined,
+    permissionOverwrites: overwrites
+  });
+
+  const createdAt = moment().tz('Asia/Bangkok').format('YYYY-MM-DD HH:mm:ss');
+  const info = { ticketId, channelId: ch.id, type, ownerId, status: 'Open', claimedBy: null, createdAt };
+  ticketStore.set(ticketId, info);
+
+  const discordUser = ownerId ? await client.users.fetch(ownerId).catch(() => null) : null;
+  const discordUsername = discordUser ? discordUser.tag : (opts.ownerName || 'Unknown');
+  await appendTranscriptRow(ticketId, discordUsername, ownerId || '', type);
+
+  const buttons = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`ticket_claim_${ticketId}`).setLabel('Claim').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`ticket_unclaim_${ticketId}`).setLabel('Unclaim').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`ticket_close_${ticketId}`).setLabel('Close').setStyle(ButtonStyle.Danger)
+  );
+
+  const embed = new EmbedBuilder()
+    .setTitle(`🎫 Ticket ${ticketId}`)
+    .setDescription(opts.initialMessage || `ประเภท: **${type}**\nเจ้าของ: <@${ownerId}>`)
+    .setColor(0x2ecc71)
+    .setFooter({ text: `Ticket ID: ${ticketId}` });
+
+  await ch.send({ content: ownerId ? `<@${ownerId}>` : '', embeds: [embed], components: [buttons] });
+  return { ch, info };
+}
+
+function findTicketInfoByChannel(channelId) {
+  for (const info of ticketStore.values()) if (info.channelId === channelId) return info;
+  return null;
+}
+
 client.once('ready', async () => {
   console.log('Discord ready', client.user.tag);
   loadCommandsAndRegister().catch(e=>console.warn('register fail', e.message || e));
- try {
-    const panelCh = process.env.ORDER_CH_ID;
-    if (panelCh) {
-      const ch = await client.channels.fetch(panelCh).catch(()=>null);
-      if (ch) {
-        const embed = new EmbedBuilder().setTitle('🎫 Ticket Panel').setDescription('กดปุ่มเพื่อสร้าง Ticket').setColor(0x5865F2);
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('ticket_btn_order').setLabel('🛒 Order').setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId('ticket_btn_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
-          new ButtonBuilder().setCustomId('ticket_btn_qna').setLabel('❓ Q&A').setStyle(ButtonStyle.Success)
-        );
-        await ch.send({ embeds: [embed], components: [row] });
-      }
-    }
-  } catch (e) { console.warn('send ticket panel failed', e.message || e); }
 
+
+ client.user.setActivity('ช่วยงานสุดหล่อ', { type: ActivityType.Streaming, url: 'https://www.twitch.tv/idleaccountdun' });
+
+  const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
+  const commands = [
+    new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้าน').toJSON(),
+    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้าน').toJSON()
+  ];
+  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); }
+  catch (err) { console.error('register commands error', err); }
 });
 
 
