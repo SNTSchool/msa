@@ -53,9 +53,13 @@ const client = new Client({
 });
 client.commands = new Collection();
 
-/* In-memory stores */
-const verifyStatus = new Map(); // discordId -> { method, robloxUsername, phrase, verified, enteredGame, createdAt, expiryTimeout }
-const pkceStore = {}; // state -> { verifier, createdAt, discordId }
+const CLAIM_COOLDOWN_MS = 10 * 60 * 1000;
+const verifyStatus = new Map(); 
+const pkceStore = {}; 
+const orderTypeStore = new Map(); 
+const ticketStore = new Map(); 
+const lastClaimAt = new Map(); 
+
 
 /* Helpers */
 function base64url(buf) {
