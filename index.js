@@ -51,7 +51,47 @@ const BASE_URL = (process.env.BASE_URL || '').replace(/\/$/,'');
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildMembers]
 });
-client.commands = new Collection();
+
+
+
+
+
+
+
+const commands = [];
+const commandsPath = path.join(__dirname, 'commands');
+const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
+
+for (const file of commandFiles) {
+  const command = require(path.join(commandsPath, file));
+  if (!command.data) continue;
+  commands.push(command.data.toJSON());
+}
+
+
+
+// ==== คำสั่งพิเศษ ====
+
+commands.push(
+  new SlashCommandBuilder()
+    .setName('openshop')
+    .setDescription('เปิดร้าน')
+    .toJSON()
+);
+
+commands.push(
+  new SlashCommandBuilder()
+    .setName('closeshop')
+    .setDescription('ปิดร้าน')
+    .toJSON()
+);
+
+
+
+
+
+
+
 
 const CLAIM_COOLDOWN_MS = 10 * 60 * 1000;
 const verifyStatus = new Map(); 
@@ -396,35 +436,7 @@ app.get('/.well-known/health', (req, res) => res.status(200).send('OK'));
 /* Start Express first (fast) */
 app.listen(PORT, () => console.log(`Express listening on ${PORT}`));
 
-/* Load commands lazily and register after ready */
-async function loadCommandsAndRegister() {
-  try {
-    const commandsDir = path.join(__dirname, 'commands');
-    const payload = [];
-    if (fs.existsSync(commandsDir)) {
-      const files = fs.readdirSync(commandsDir).filter(f=>f.endsWith('.js'));
-      for (const f of files) {
-        try {
-          const cmd = require(path.join(commandsDir, f));
-          if (cmd && cmd.data && cmd.execute) {
-            client.commands.set(cmd.data.name, cmd);
-            payload.push(cmd.data.toJSON ? cmd.data.toJSON() : cmd.data);
-          }
-        } catch (e) { console.warn('cmd load fail', f, e.message || e); }
-      }
-    }
-    if (payload.length && process.env.CLIENT_ID) {
-      const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-      if (process.env.GUILD_ID) {
-        await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: payload });
-        console.log('Registered guild commands');
-      } else {
-        await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), { body: payload });
-        console.log('Registered global commands');
-      }
-    }
-  } catch (err) { console.error('loadCommandsAndRegister error', err.message || err); }
-}
+
 
 async function collectTranscript(channel) {
   try {
@@ -496,18 +508,30 @@ function findTicketInfoByChannel(channelId) {
 
 client.once('ready', async () => {
   console.log('Discord ready', client.user.tag);
-  loadCommandsAndRegister().catch(e=>console.warn('register fail', e.message || e));
 
+  client.user.setActivity('ช่วยงานสุดหล่อ', {
+    type: ActivityType.Streaming,
+    url: 'https://www.twitch.tv/idleaccountdun'
+  });
 
- client.user.setActivity('ช่วยงานสุดหล่อ', { type: ActivityType.Streaming, url: 'https://www.twitch.tv/idleaccountdun' });
-
+  // Register slash commands
   const rest = new REST({ version: '10' }).setToken(process.env.TOKEN);
-  const commands = [
-    new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้าน').toJSON(),
-    new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้าน').toJSON()
-  ];
-  try { await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands }); }
-  catch (err) { console.error('register commands error', err); }
+
+  try {
+    console.log('Registering Slash Commands...');
+    await rest.put(
+      Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID),
+      { body: commands }
+    );
+
+    console.log('Slash command registered:');
+    commands.forEach(c => console.log(` - ${c.name}`));
+
+  } catch (err) {
+    console.error('Register command error:', err);
+
+    
+  }
 });
 
 
