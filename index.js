@@ -59,34 +59,26 @@ client.commands = new Collection();
 
 
 
-const commands = [];
+
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
+const commands = [];
 
 for (const file of commandFiles) {
   const command = require(path.join(commandsPath, file));
-  if (!command.data) continue;
+  if (!command.data || !command.execute) continue;
+
+  client.commands.set(command.data.name, command);
   commands.push(command.data.toJSON());
 }
 
+// เพิ่มคำสั่ง index.js เช่น openshop / closeshop
+const indexCommands = [
+  new SlashCommandBuilder().setName('openshop').setDescription('เปิดร้าน').toJSON(),
+  new SlashCommandBuilder().setName('closeshop').setDescription('ปิดร้าน').toJSON()
+];
 
-
-// ==== คำสั่งพิเศษ ====
-
-commands.push(
-  new SlashCommandBuilder()
-    .setName('openshop')
-    .setDescription('เปิดร้าน')
-    .toJSON()
-);
-
-commands.push(
-  new SlashCommandBuilder()
-    .setName('closeshop')
-    .setDescription('ปิดร้าน')
-    .toJSON()
-);
-
+commands.push(...indexCommands);
 
 
 
@@ -530,8 +522,6 @@ client.once('ready', async () => {
 
   } catch (err) {
     console.error('Register command error:', err);
-
-
   }
 });
 
@@ -540,34 +530,131 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
   try {
-    if (interaction.isChatInputCommand()) {
-      const name = interaction.commandName;
-      if (name === 'setuppanel') {
-        const embed = new EmbedBuilder().setTitle('🎫 Ticket Panel').setDescription('กดปุ่มเพื่อสร้าง Ticket').setColor(0x5865F2);
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('ticket_btn_order').setLabel('🛒 Order').setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId('ticket_btn_report').setLabel('🚨 Report').setStyle(ButtonStyle.Danger),
-          new ButtonBuilder().setCustomId('ticket_btn_qna').setLabel('❓ Q&A').setStyle(ButtonStyle.Success)
-        );
+              
+
+
+ if (interaction.isChatInputCommand()) {
+    const name = interaction.commandName;
+
+    // =========================
+    // คำสั่ง index.js
+    // =========================
+    if (name === 'setuppanel') {
+      const embed = new EmbedBuilder()
+        .setTitle('🎫 Ticket Panel')
+        .setDescription('กดปุ่มเพื่อสร้าง Ticket')
+        .setColor(0x5865F2);
+
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId('ticket_btn_order')
+          .setLabel('🛒 Order')
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId('ticket_btn_report')
+          .setLabel('🚨 Report')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId('ticket_btn_qna')
+          .setLabel('❓ Q&A')
+          .setStyle(ButtonStyle.Success)
+      );
+
+      if (interaction.channel && interaction.channel.isTextBased()) {
         await interaction.channel.send({ embeds: [embed], components: [row] });
-        return interaction.reply({ content: '✅ Ticket panel sent to this channel', ephemeral: true });
       }
-      if (name === 'openshop') {
-        customOverride = 'open';
-        await updateVoiceChannelStatus();
-        return interaction.reply({ content: '✅ ร้านถูกเปิดแบบ override', ephemeral: true });
-      }
-      if (name === 'closeshop') {
-        customOverride = 'closed';
-        await updateVoiceChannelStatus();
-        return interaction.reply({ content: '✅ ร้านถูกปิดแบบ override', ephemeral: true });
-      }
-      const cmd = client.commands.get(name);
-      if (cmd) {
-        try { await cmd.execute(interaction, client); } catch (err) { console.error('command execute error', err); interaction.reply({ content: 'Command error', ephemeral: true }); }
+
+      if (!interaction.replied) {
+        await interaction.reply({ content: '✅ Ticket panel sent to this channel', ephemeral: true });
       }
       return;
     }
+
+
+
+        if (name === 'openshop') {
+      customOverride = 'open';
+      await updateVoiceChannelStatus();
+
+      if (!interaction.replied) {
+        await interaction.reply({ content: '✅ ร้านถูกเปิดแบบ override', ephemeral: true });
+      }
+      return;
+    }
+
+    if (name === 'closeshop') {
+      customOverride = 'closed';
+      await updateVoiceChannelStatus();
+
+      if (!interaction.replied) {
+        await interaction.reply({ content: '✅ ร้านถูกปิดแบบ override', ephemeral: true });
+      }
+      return;
+    }
+const cmd = client.commands.get(name);
+    if (cmd) {
+      try {
+        await cmd.execute(interaction, client);
+      } catch (err) {
+        console.error('command execute error', err);
+        if (!interaction.replied) {
+          await interaction.reply({ content: 'Command error', ephemeral: true });
+        }
+      }
+      return;
+    }
+
+    if (!interaction.replied) {
+      await interaction.reply({ content: 'คำสั่งไม่ถูกต้อง', ephemeral: true });
+    }
+ }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     if (interaction.isButton()) {
       // verification buttons
