@@ -530,15 +530,10 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
   try {
-              
-
-
  if (interaction.isChatInputCommand()) {
     const name = interaction.commandName;
 
-    // =========================
-    // คำสั่ง index.js
-    // =========================
+    
     if (name === 'setuppanel') {
       const embed = new EmbedBuilder()
         .setTitle('🎫 Ticket Panel')
@@ -608,48 +603,6 @@ const cmd = client.commands.get(name);
       await interaction.reply({ content: 'คำสั่งไม่ถูกต้อง', ephemeral: true });
     }
  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -758,6 +711,46 @@ const cmd = client.commands.get(name);
         interaction.client._closeFlow.set(interaction.channelId, { ticketId });
         return interaction.reply({ content: 'โปรดเลือกคะแนนและเหตุผล (ephemeral)', components: [row1, row2], ephemeral: true });
       }
+
+       const custom = interaction.customId;
+      if (!custom.startsWith('twbtn_')) return; // ignore other buttons
+
+      // only users with session/permission? we allow anyone to press — but you can change
+      // parse customId: twbtn_{targetId}_{channelId}_{messageId}
+      const parts = custom.split('_');
+      if (parts.length < 4) {
+        return interaction.reply({ content: 'ข้อมูลปุ่มไม่ถูกต้อง', ephemeral: true });
+      }
+      const targetId = parts[1];
+      const channelId = parts[2];
+      const messageId = parts.slice(3).join('_');
+
+      // สร้าง modal
+      const modalId = `twmodal_${targetId}_${channelId}_${messageId}_${Date.now()}`;
+      const modal = new ModalBuilder()
+        .setCustomId(modalId)
+        .setTitle('ส่งลิงก์อั่งเปาและหมายเหตุ');
+
+      const linkInput = new TextInputBuilder()
+        .setCustomId('link')
+        .setLabel('ลิงก์อั่งเปา (URL)')
+        .setRequired(true)
+        .setStyle(TextInputStyle.Short)
+        .setPlaceholder('https://...');
+
+      const noteInput = new TextInputBuilder()
+        .setCustomId('note')
+        .setLabel('หมายเหตุการเติมเงิน')
+        .setRequired(true)
+        .setStyle(TextInputStyle.Paragraph)
+        .setPlaceholder('เช่น เติมซื้อ order123');
+
+      const row1 = new ActionRowBuilder().addComponents(linkInput);
+      const row2 = new ActionRowBuilder().addComponents(noteInput);
+      modal.addComponents(row1, row2);
+
+      await interaction.showModal(modal);
+      return;
     }
 
     if (interaction.isStringSelectMenu()) {
@@ -884,6 +877,88 @@ const cmd = client.commands.get(name);
         interaction.client._closeFlow = flowMap;
         return interaction.reply({ content: '✅ Ticket closed and logged', ephemeral: true });
       }
+
+      
+      const custom = interaction.customId;
+      if (!custom.startsWith('twmodal_')) return;
+
+      // parse: twmodal_{targetId}_{channelId}_{messageId}_{timestamp}
+      const parts = custom.split('_');
+      const targetId = parts[1];
+      const channelId = parts[2];
+      const messageId = parts[3];
+
+      // required inputs (we set required=true)
+      const link = interaction.fields.getTextInputValue('link');
+      const note = interaction.fields.getTextInputValue('note');
+
+      // 1) DM target user (embed) — **ลิงก์ส่งเฉพาะใน DM**
+      try {
+        const user = await client.users.fetch(targetId);
+        const dmEmbed = new EmbedBuilder()
+          .setTitle('🔔 คำขอเติมเงินของคุณถูกส่งแล้ว')
+          .setDescription(`<@${targetId}> ได้ทำการส่งคำขอเติมเงินไว้`)
+          .addFields(
+            { name: 'ลิงก์อั่งเปา', value: link },
+            { name: 'หมายเหตุ', value: note }
+          )
+          .setColor(0x00AE86)
+          .setTimestamp();
+
+        await user.send({ embeds: [dmEmbed] });
+      } catch (err) {
+        console.error('ไม่สามารถส่ง DM ถึงผู้ใช้:', err);
+        // ถ้า DM ไม่สำเร็จ ให้แจ้งผู้ submit (ephemeral)
+        await interaction.reply({ content: 'ไม่สามารถส่ง DM ถึงผู้รับได้ (บัญชีปิด DM หรือบอทถูกบล็อก)', ephemeral: true });
+        return;
+      }
+
+      // 2) Log ไปที่ LOG_CHANNEL_ID (ไม่ใส่ลิงก์)
+      try {
+        const logChId = process.env.LOG_CHANNEL_ID;
+        if (logChId) {
+          const logCh = await client.channels.fetch(logChId).catch(()=>null);
+          if (logCh && logCh.isTextBased()) {
+            const logEmbed = new EmbedBuilder()
+              .setTitle('📥 Log: คำขอเติมเงิน')
+              .setDescription(`<@${targetId}> ได้ทำการเติมเงิน`)
+              .addFields(
+                { name: 'ผู้ส่งคำขอ', value: `<@${interaction.user.id}> (${interaction.user.id})` , inline: true },
+                { name: 'ผู้รับ (target)', value: `<@${targetId}> (${targetId})`, inline: true },
+                { name: 'หมายเหตุ', value: note, inline: false }
+              )
+              .setTimestamp();
+
+            await logCh.send({ content: `<@${targetId}> ได้ทำการเติมเงินด้วยหมายเหตุ: ${note}`, embeds: [logEmbed] });
+          }
+        }
+      } catch (err) {
+        console.error('fail to send log:', err);
+      }
+
+      // 3) ปิดปุ่มในข้อความต้นทาง (ถ้าหาได้)
+      try {
+        const channel = await client.channels.fetch(channelId).catch(()=>null);
+        if (channel && channel.isTextBased()) {
+          const msg = await channel.messages.fetch(messageId).catch(()=>null);
+          if (msg) {
+            const disabledBtn = new ButtonBuilder()
+              .setCustomId('disabled')
+              .setLabel('ส่งแล้ว')
+              .setDisabled(true)
+              .setStyle(ButtonStyle.Secondary);
+            const row = new ActionRowBuilder().addComponents(disabledBtn);
+            await msg.edit({ components: [row] }).catch(()=>null);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // ตอบผู้ submit แบบ ephemeral ว่าส่งเรียบร้อย
+      await interaction.reply({ content: 'ส่งข้อมูลเรียบร้อยแล้ว ผู้รับได้รับ DM เรียบร้อย', ephemeral: true });
+      return;
+      
     }
 
   } catch (err) {
