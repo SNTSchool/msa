@@ -54,6 +54,7 @@ const client = new Client({
 
 
 
+client.commands = new Collection();
 
 
 
@@ -530,7 +531,7 @@ client.once('ready', async () => {
   } catch (err) {
     console.error('Register command error:', err);
 
-    
+
   }
 });
 
