@@ -915,7 +915,7 @@ const cmd = client.commands.get(name);
 
       // 2) Log ไปที่ LOG_CHANNEL_ID (ไม่ใส่ลิงก์)
       try {
-        const logChId = process.env.LOG_CHANNEL_ID;
+        const logChId = '1407732551602409604';
         if (logChId) {
           const logCh = await client.channels.fetch(logChId).catch(()=>null);
           if (logCh && logCh.isTextBased()) {
